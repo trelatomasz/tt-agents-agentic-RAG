@@ -1,0 +1,2 @@
+{"id":"known-brake","query":"Which brake pads fit Aster Compact 2022?","expected_part":"BRK-100","must_abstain":false}
+{"id":"unknown-wiper","query":"Which wiper fits Northstar SUV?","expected_part":null,"must_abstain":true}
