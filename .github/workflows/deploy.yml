@@ -44,16 +44,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Validate Required Configuration
+      - name: Check GCP Configuration
+        id: check_config
         run: |
           if [ -z "${{ env.PROJECT_ID }}" ]; then
-            echo "::error::Missing required repository/environment variable: GCP_PROJECT_ID"
-            echo "Please configure GCP_PROJECT_ID in GitHub Repository Settings -> Secrets and variables -> Actions"
-            exit 1
+            echo "gcp_configured=false" >> $GITHUB_OUTPUT
+            echo "::warning::GCP_PROJECT_ID variable is not configured. Skipping automated deployment."
+            echo "To enable automated deployment, set GCP_PROJECT_ID in GitHub Repository Settings -> Secrets and variables -> Actions."
+          elif [ -z "${{ env.WIF_PROVIDER }}" ] || [ -z "${{ env.WIF_SERVICE_ACCOUNT }}" ]; then
+            echo "gcp_configured=false" >> $GITHUB_OUTPUT
+            echo "::warning::GCP_WIF_PROVIDER or GCP_WIF_SERVICE_ACCOUNT is not configured. Skipping automated deployment."
+            echo "To enable automated deployment, set WIF variables in GitHub Repository Settings -> Secrets and variables -> Actions."
+          else
+            echo "gcp_configured=true" >> $GITHUB_OUTPUT
           fi
 
       - name: Authenticate to Google Cloud via WIF
-        if: env.WIF_PROVIDER != '' && env.WIF_SERVICE_ACCOUNT != ''
+        if: steps.check_config.outputs.gcp_configured == 'true'
         uses: google-github-actions/auth@v2
         with:
           project_id: ${{ env.PROJECT_ID }}
@@ -61,15 +68,16 @@ jobs:
           service_account: ${{ env.WIF_SERVICE_ACCOUNT }}
 
       - name: Set up Cloud SDK
-        if: env.WIF_PROVIDER != ''
+        if: steps.check_config.outputs.gcp_configured == 'true'
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Configure Docker authentication for Artifact Registry
-        if: env.WIF_PROVIDER != ''
+        if: steps.check_config.outputs.gcp_configured == 'true'
         run: |
           gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
 
       - name: Set Image Tag
+        if: steps.check_config.outputs.gcp_configured == 'true'
         id: image_tag
         run: |
           SHORT_SHA=$(git rev-parse --short HEAD)
@@ -78,7 +86,7 @@ jobs:
           echo "IMAGE_URI=${IMAGE_URI}" >> $GITHUB_ENV
 
       - name: Build and Push Docker Image
-        if: env.WIF_PROVIDER != ''
+        if: steps.check_config.outputs.gcp_configured == 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -89,11 +97,13 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ env.ENVIRONMENT }}
 
       - name: Setup OpenTofu
+        if: steps.check_config.outputs.gcp_configured == 'true'
         uses: opentofu/setup-opentofu@v1
         with:
           tofu_version: "1.8.2"
 
       - name: OpenTofu Init
+        if: steps.check_config.outputs.gcp_configured == 'true'
         run: |
           if [ -n "${{ env.TF_STATE_BUCKET }}" ]; then
             echo "Initializing with remote GCS state bucket: ${{ env.TF_STATE_BUCKET }}"
@@ -106,6 +116,7 @@ jobs:
           fi
 
       - name: OpenTofu Plan
+        if: steps.check_config.outputs.gcp_configured == 'true'
         run: |
           tofu -chdir=deployment/gcp plan \
             -var="project_id=${{ env.PROJECT_ID }}" \
@@ -117,11 +128,11 @@ jobs:
             -out=tfplan
 
       - name: OpenTofu Apply
-        if: github.ref == 'refs/heads/main' || inputs.auto_approve == true
+        if: steps.check_config.outputs.gcp_configured == 'true' && (github.ref == 'refs/heads/main' || inputs.auto_approve == true)
         run: tofu -chdir=deployment/gcp apply -auto-approve tfplan
 
       - name: Verify Deployment Health
-        if: env.WIF_PROVIDER != ''
+        if: steps.check_config.outputs.gcp_configured == 'true'
         run: |
           SERVICE_URL=$(tofu -chdir=deployment/gcp output -raw service_url)
           echo "Checking health endpoint at ${SERVICE_URL}/health"

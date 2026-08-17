@@ -36,7 +36,17 @@ class SearchHit:
 _TOKEN = re.compile(r"[a-z0-9]+")
 _YEAR = re.compile(r"\b(?:19|20)\d{2}\b")
 _STOP_WORDS = {
-    "a", "an", "and", "does", "fit", "fits", "for", "is", "part", "the", "which",
+    "a",
+    "an",
+    "and",
+    "does",
+    "fit",
+    "fits",
+    "for",
+    "is",
+    "part",
+    "the",
+    "which",
 }
 
 
@@ -69,18 +79,29 @@ class Catalog:
     @classmethod
     def from_json(cls, raw: str) -> "Catalog":
         payload = json.loads(raw)
-        return cls([Part(
-            part_id=item["part_id"], name=item["name"], description=item["description"],
-            compatible_with=tuple(item["compatible_with"]), source_id=item["source_id"],
-            catalog_version=item["catalog_version"],
-        ) for item in payload["parts"] if not item.get("deleted", False)])
+        return cls(
+            [
+                Part(
+                    part_id=item["part_id"],
+                    name=item["name"],
+                    description=item["description"],
+                    compatible_with=tuple(item["compatible_with"]),
+                    source_id=item["source_id"],
+                    catalog_version=item["catalog_version"],
+                )
+                for item in payload["parts"]
+                if not item.get("deleted", False)
+            ]
+        )
 
     @classmethod
     def load(cls, local_path: str, gcs_uri: str | None = None) -> "Catalog":
         if not gcs_uri:
             return cls.from_json(Path(local_path).read_text(encoding="utf-8"))
         parsed = urlparse(gcs_uri)
-        raw = storage.Client().bucket(parsed.netloc).blob(parsed.path.lstrip("/")).download_as_text()
+        raw = (
+            storage.Client().bucket(parsed.netloc).blob(parsed.path.lstrip("/")).download_as_text()
+        )
         return cls.from_json(raw)
 
     def search(self, query: str, limit: int, min_score: float = 2.0) -> list[SearchHit]:
@@ -97,9 +118,7 @@ class Catalog:
         requested_vehicle_terms = query_terms & vehicle_terms
         requested_year_tokens = {str(year) for year in requested_years}
         requested_part_ids = {
-            part.part_id
-            for part in self.parts
-            if _tokens(part.part_id) <= query_terms
+            part.part_id for part in self.parts if _tokens(part.part_id) <= query_terms
         }
         ranked: list[SearchHit] = []
 
@@ -128,7 +147,9 @@ class Catalog:
                 continue
             score = float(len(lexical_terms)) + compatibility_score
             if score >= min_score:
-                ranked.append(SearchHit(part, score, tuple(sorted(lexical_terms | compatibility_overlap))))
+                ranked.append(
+                    SearchHit(part, score, tuple(sorted(lexical_terms | compatibility_overlap)))
+                )
 
         ranked.sort(key=lambda hit: (-hit.score, hit.part.part_id))
         return ranked[:limit]

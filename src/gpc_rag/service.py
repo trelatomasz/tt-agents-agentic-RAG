@@ -9,10 +9,20 @@ from .generator import AnswerGenerator
 from .models import AskResponse, Citation
 
 
-class CatalogStaleError(RuntimeError): pass
-class NoEvidenceError(RuntimeError): pass
-class GroundingError(RuntimeError): pass
-class DependencyFailedError(RuntimeError): pass
+class CatalogStaleError(RuntimeError):
+    pass
+
+
+class NoEvidenceError(RuntimeError):
+    pass
+
+
+class GroundingError(RuntimeError):
+    pass
+
+
+class DependencyFailedError(RuntimeError):
+    pass
 
 
 logger = logging.getLogger(__name__)
@@ -29,7 +39,11 @@ class RagService:
         min_score: float = 2.0,
     ):
         self.catalog, self.generator, self.max_age, self.limit, self.min_score = (
-            catalog, generator, max_age, limit, min_score
+            catalog,
+            generator,
+            max_age,
+            limit,
+            min_score,
         )
 
     async def ask(self, query: str, request_id: str, timeout: float) -> AskResponse:
