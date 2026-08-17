@@ -1,0 +1,11 @@
+source_id: local-notes
+source_type: filesystem
+display_name: Local engineering notes
+visibility: private
+owner: tomasz
+refresh_policy: manual
+rights_policy: personal_reference
+adapter_version: filesystem-text/1
+root: data/personal/notes
+include:
+  - "**/*.md"
