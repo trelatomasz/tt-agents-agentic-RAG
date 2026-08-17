@@ -1,4 +1,4 @@
-name: Security & Secret Leak Scanner
+name: Gitleaks Security Scan
 
 on:
   push:
@@ -7,17 +7,16 @@ on:
     branches: [ main, dev ]
 
 jobs:
-  secret-scan:
-    name: Secret & Identity Leak Gate
+  gitleaks:
+    name: Gitleaks Secret Scanner
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          fetch-depth: 0
 
-      - name: Run Secret & Identity Leak Scanner
-        run: python scripts/security_check.py
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
