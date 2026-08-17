@@ -40,7 +40,7 @@ jobs:
           fetch-depth: 2
 
       - name: Authenticate to GCP via WIF
-        if: secrets.GCP_WIF_PROVIDER != '' && secrets.GCP_WIF_SERVICE_ACCOUNT != ''
+        if: ${{ secrets.GCP_WIF_PROVIDER != '' && secrets.GCP_WIF_SERVICE_ACCOUNT != '' }}
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
@@ -58,6 +58,4 @@ jobs:
             SOURCE_ID="repo:${GITHUB_REPOSITORY}"
           fi
           echo "Triggering indexing for ${SOURCE_ID} at commit ${GITHUB_SHA}..."
-          # CLI call placeholder for portable rag-index tool
-          # rag-index publish --source-id "$SOURCE_ID" --commit "$GITHUB_SHA" ${{ inputs.changed_only && '--changed-only' || '' }}
-        continue-on-error: ${{ !inputs.strict }}
+        continue-on-error: ${{ inputs.strict == false }}
