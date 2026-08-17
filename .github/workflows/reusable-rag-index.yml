@@ -23,6 +23,7 @@ on:
         required: false
       GCP_WIF_SERVICE_ACCOUNT:
         required: false
+  workflow_dispatch:
 
 permissions:
   contents: read
