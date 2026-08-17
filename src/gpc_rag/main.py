@@ -9,12 +9,24 @@ from .catalog import Catalog
 from .config import get_settings
 from .generator import DeterministicGenerator, VertexGenerator
 from .models import AskRequest, ErrorBody, ErrorResponse
-from .service import CatalogStaleError, NoEvidenceError, RagService
+from .service import (
+    CatalogStaleError,
+    DependencyFailedError,
+    GroundingError,
+    NoEvidenceError,
+    RagService,
+)
 
 settings = get_settings()
 catalog = Catalog.load(settings.catalog_path, settings.catalog_gcs_uri)
 generator = VertexGenerator(settings.project_id, settings.location, settings.model_id) if settings.use_vertex else DeterministicGenerator()
-service = RagService(catalog, generator, settings.catalog_max_age_seconds, settings.max_context_parts)
+service = RagService(
+    catalog,
+    generator,
+    settings.catalog_max_age_seconds,
+    settings.max_context_parts,
+    settings.retrieval_min_score,
+)
 app = FastAPI(title="GPC Parts RAG", version="1.0.0")
 
 
@@ -36,6 +48,10 @@ async def ask(payload: AskRequest):
         return error(payload.request_id, "CATALOG_STALE", str(exc), False, "CONVENTIONAL_SEARCH", 503)
     except NoEvidenceError as exc:
         return error(payload.request_id, "NO_EVIDENCE", str(exc), False, "CONVENTIONAL_SEARCH", 422)
+    except GroundingError as exc:
+        return error(payload.request_id, "GROUNDING_FAILED", str(exc), False, "CONVENTIONAL_SEARCH", 502)
+    except DependencyFailedError as exc:
+        return error(payload.request_id, "DEPENDENCY_FAILED", str(exc), True, "RETRY", 502)
     except TimeoutError:
         return error(payload.request_id, "DEADLINE_EXCEEDED", "generation timed out", True, "RETRY", 504)
 
@@ -56,6 +72,14 @@ async def stream(payload: AskRequest, request: Request):
             for citation in result.citations:
                 yield f"event: citation\ndata: {citation.model_dump_json()}\n\n"
             yield 'event: completed\ndata: {"finish_reason":"complete"}\n\n'
-        except (CatalogStaleError, NoEvidenceError) as exc:
-            yield f"event: failed\ndata: {json.dumps({'code': type(exc).__name__, 'message': str(exc), 'fallback': 'CONVENTIONAL_SEARCH'})}\n\n"
+        except TimeoutError:
+            yield 'event: failed\ndata: {"code":"DEADLINE_EXCEEDED","message":"generation timed out","fallback":"RETRY"}\n\n'
+        except CatalogStaleError as exc:
+            yield f"event: failed\ndata: {json.dumps({'code': 'CATALOG_STALE', 'message': str(exc), 'fallback': 'CONVENTIONAL_SEARCH'})}\n\n"
+        except NoEvidenceError as exc:
+            yield f"event: failed\ndata: {json.dumps({'code': 'NO_EVIDENCE', 'message': str(exc), 'fallback': 'CONVENTIONAL_SEARCH'})}\n\n"
+        except GroundingError as exc:
+            yield f"event: failed\ndata: {json.dumps({'code': 'GROUNDING_FAILED', 'message': str(exc), 'fallback': 'CONVENTIONAL_SEARCH'})}\n\n"
+        except DependencyFailedError as exc:
+            yield f"event: failed\ndata: {json.dumps({'code': 'DEPENDENCY_FAILED', 'message': str(exc), 'fallback': 'RETRY'})}\n\n"
     return StreamingResponse(events(), media_type="text/event-stream")

@@ -22,3 +22,4 @@
 | 18 | Typed boundary and tests | Run failure-path tests |
 | 19 | `/v1/answers:stream`, `models.py` | Inspect events and cancellation |
 | 20 | `docs/architecture.md` § Decision experiment | Review evidence and owner |
+| RAG reliability | `docs/rag-problem-evidence.md` | Run the tests and evaluation; inspect each control and stated limitation |
