@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     catalog_max_age_seconds: int = 86400
     request_timeout_seconds: float = 8.0
     max_context_parts: int = 4
+    retrieval_min_score: float = 2.0
     use_vertex: bool = False
 
 
