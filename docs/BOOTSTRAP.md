@@ -15,7 +15,7 @@ region            = "europe-west1"
 environment       = "dev"
 image             = "europe-west1-docker.pkg.dev/your-gcp-project-id/tt-rag-parts/api:latest"
 invoker           = "user:your-email@example.com"
-github_repository = "trelatomasz/tt-agents-agentic-RAG"
+github_repository = "your-github-org/tt-agents-agentic-RAG"
 db_tier           = "db-f1-micro"
 db_name           = "personal_rag"
 db_user           = "rag_app"
@@ -126,7 +126,7 @@ Navigate to your GitHub repository: **Settings $\rightarrow$ Secrets and variabl
 | `GCP_WIF_SERVICE_ACCOUNT` | **Variable** | Output from `tofu output wif_service_account` |
 | `GCP_INVOKER` | **Variable** | *(Optional)* `user:your-email@example.com` |
 
-Once these variables are set, every `git push` to `main` (production) or `develop` (dev) will build, test, and deploy automatically without static service account keys!
+Once these variables are set, every `git push` to `main` (production) or `dev` (dev) will build, test, and deploy automatically without static service account keys!
 
 ---
 
