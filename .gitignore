@@ -8,3 +8,4 @@ __pycache__/
 *.tfstate.*
 *.tfplan
 .env
+.idea

@@ -1,2 +1,5 @@
 {"id":"known-brake","query":"Which brake pads fit Aster Compact 2022?","expected_part":"BRK-100","must_abstain":false}
+{"id":"known-filter","query":"Which engine air filter fits Boreal Sedan 2021?","expected_part":"FLT-220","must_abstain":false}
+{"id":"unsupported-year","query":"Which brake pads fit Aster Compact 2024?","expected_part":null,"must_abstain":true}
+{"id":"wrong-vehicle","query":"Does BRK-100 fit Boreal Sedan 2021?","expected_part":null,"must_abstain":true}
 {"id":"unknown-wiper","query":"Which wiper fits Northstar SUV?","expected_part":null,"must_abstain":true}

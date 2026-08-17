@@ -15,7 +15,7 @@ class AnswerGenerator(Protocol):
 class DeterministicGenerator:
     async def generate(self, query: str, parts: list[Part]) -> str:
         del query
-        return "Relevant parts: " + ", ".join(f"{p.part_id} ({p.name})" for p in parts)
+        return "Relevant parts: " + ", ".join(f"[{p.part_id}] {p.name}" for p in parts)
 
 
 class VertexGenerator:
