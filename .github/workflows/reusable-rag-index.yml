@@ -1,0 +1,62 @@
+name: Reusable RAG Repository Indexer
+
+on:
+  workflow_call:
+    inputs:
+      source_id:
+        description: "Source ID for this repository (e.g. repo:org/name)"
+        required: false
+        type: string
+        default: ""
+      changed_only:
+        description: "Index only files changed since previous commit"
+        required: false
+        type: boolean
+        default: true
+      strict:
+        description: "Fail the workflow if indexing fails"
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      GCP_WIF_PROVIDER:
+        required: false
+      GCP_WIF_SERVICE_ACCOUNT:
+        required: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  index-repository:
+    name: Publish Repository Chunks to RAG Index
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Authenticate to GCP via WIF
+        if: secrets.GCP_WIF_PROVIDER != '' && secrets.GCP_WIF_SERVICE_ACCOUNT != ''
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Publish changes to RAG index
+        run: |
+          SOURCE_ID="${{ inputs.source_id }}"
+          if [ -z "$SOURCE_ID" ]; then
+            SOURCE_ID="repo:${GITHUB_REPOSITORY}"
+          fi
+          echo "Triggering indexing for ${SOURCE_ID} at commit ${GITHUB_SHA}..."
+          # CLI call placeholder for portable rag-index tool
+          # rag-index publish --source-id "$SOURCE_ID" --commit "$GITHUB_SHA" ${{ inputs.changed_only && '--changed-only' || '' }}
+        continue-on-error: ${{ !inputs.strict }}
