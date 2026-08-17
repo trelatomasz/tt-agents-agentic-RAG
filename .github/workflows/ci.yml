@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-test:
+    name: Lint, Test & Evaluate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Lint with Ruff
+        run: |
+          uv run ruff check src tests evals
+          uv run ruff format --check src tests evals
+
+      - name: Run Unit Tests
+        run: uv run pytest -v
+
+      - name: Run Evaluations Gate
+        run: PYTHONPATH=src uv run python evals/run_eval.py
+
+  validate-iac:
+    name: Validate OpenTofu / Terraform
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: "1.8.2"
+
+      - name: OpenTofu Format Check
+        run: tofu -chdir=deployment/gcp fmt -check
+
+      - name: OpenTofu Init (Backend validation)
+        run: tofu -chdir=deployment/gcp init -backend=false
+
+      - name: OpenTofu Validate
+        run: tofu -chdir=deployment/gcp validate
+
+  docker-build-check:
+    name: Check Dockerfile Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build container image (dry-run)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: tt-rag-parts:test

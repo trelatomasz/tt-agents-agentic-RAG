@@ -1,0 +1,129 @@
+name: Deploy to GCP
+
+on:
+  push:
+    branches: [ main, develop ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target deployment environment"
+        required: true
+        default: "dev"
+        type: choice
+        options:
+          - dev
+          - prod
+      auto_approve:
+        description: "Auto-approve OpenTofu deployment"
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    name: Build, Provision & Deploy
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment || (github.ref == 'refs/heads/main' && 'prod' || 'dev') }}
+    env:
+      PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      REGION: ${{ vars.GCP_REGION || 'europe-west1' }}
+      ENVIRONMENT: ${{ inputs.environment || (github.ref == 'refs/heads/main' && 'prod' || 'dev') }}
+      WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+      WIF_SERVICE_ACCOUNT: ${{ vars.GCP_WIF_SERVICE_ACCOUNT }}
+      TF_STATE_BUCKET: ${{ vars.GCP_TF_STATE_BUCKET }}
+      INVOKER: ${{ vars.GCP_INVOKER || '' }}
+      REGISTRY: ${{ vars.GCP_REGION || 'europe-west1' }}-docker.pkg.dev
+      REPOSITORY: tt-rag-parts
+      IMAGE_NAME: api
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate Required Configuration
+        run: |
+          if [ -z "${{ env.PROJECT_ID }}" ]; then
+            echo "::error::Missing required repository/environment variable: GCP_PROJECT_ID"
+            echo "Please configure GCP_PROJECT_ID in GitHub Repository Settings -> Secrets and variables -> Actions"
+            exit 1
+          fi
+
+      - name: Authenticate to Google Cloud via WIF
+        if: env.WIF_PROVIDER != '' && env.WIF_SERVICE_ACCOUNT != ''
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        if: env.WIF_PROVIDER != ''
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker authentication for Artifact Registry
+        if: env.WIF_PROVIDER != ''
+        run: |
+          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Set Image Tag
+        id: image_tag
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          IMAGE_URI="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:${SHORT_SHA}"
+          echo "image_uri=${IMAGE_URI}" >> $GITHUB_OUTPUT
+          echo "IMAGE_URI=${IMAGE_URI}" >> $GITHUB_ENV
+
+      - name: Build and Push Docker Image
+        if: env.WIF_PROVIDER != ''
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.image_tag.outputs.image_uri }}
+            ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ env.ENVIRONMENT }}
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: "1.8.2"
+
+      - name: OpenTofu Init
+        run: |
+          if [ -n "${{ env.TF_STATE_BUCKET }}" ]; then
+            echo "Initializing with remote GCS state bucket: ${{ env.TF_STATE_BUCKET }}"
+            tofu -chdir=deployment/gcp init \
+              -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
+              -backend-config="prefix=tt-rag-parts/${{ env.ENVIRONMENT }}"
+          else
+            echo "Initializing with dynamic backend configuration"
+            tofu -chdir=deployment/gcp init -backend=false
+          fi
+
+      - name: OpenTofu Plan
+        run: |
+          tofu -chdir=deployment/gcp plan \
+            -var="project_id=${{ env.PROJECT_ID }}" \
+            -var="region=${{ env.REGION }}" \
+            -var="environment=${{ env.ENVIRONMENT }}" \
+            -var="image=${{ steps.image_tag.outputs.image_uri }}" \
+            -var="invoker=${{ env.INVOKER }}" \
+            -var="github_repository=${{ github.repository }}" \
+            -out=tfplan
+
+      - name: OpenTofu Apply
+        if: github.ref == 'refs/heads/main' || inputs.auto_approve == true
+        run: tofu -chdir=deployment/gcp apply -auto-approve tfplan
+
+      - name: Verify Deployment Health
+        if: env.WIF_PROVIDER != ''
+        run: |
+          SERVICE_URL=$(tofu -chdir=deployment/gcp output -raw service_url)
+          echo "Checking health endpoint at ${SERVICE_URL}/health"
+          TOKEN=$(gcloud auth print-identity-token)
+          curl --fail --show-error -H "Authorization: Bearer ${TOKEN}" "${SERVICE_URL}/health"

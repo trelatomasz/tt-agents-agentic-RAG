@@ -1,11 +1,38 @@
+# Python
 .venv/
 .pytest_cache/
 .ruff_cache/
 __pycache__/
 *.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+
+# OpenTofu / Terraform
 .terraform/
+.terraform.lock.hcl
 *.tfstate
 *.tfstate.*
 *.tfplan
+*.tfvars
+!*.tfvars.example
+*.tfvars.json
+
+# Secrets, Environment & Credentials
 .env
-.idea
+.env.*
+!*.env.example
+*credentials*.json
+*service_account*.json
+*sa_key*.json
+*.key
+*.pem
+.gcp/
+.auth/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
