@@ -1,0 +1,12 @@
+# Copy this file to terraform.tfvars and fill in your values
+# DO NOT commit your local terraform.tfvars file to git!
+
+project_id        = "your-gcp-project-id"
+region            = "europe-west1"
+environment       = "dev"
+image             = "europe-west1-docker.pkg.dev/your-gcp-project-id/tt-rag-parts/api:latest"
+invoker           = "user:your-email@example.com"
+github_repository = "your-github-username/tt-rag-parts"
+db_tier           = "db-f1-micro"
+db_name           = "personal_rag"
+db_user           = "rag_app"
