@@ -1,0 +1,18 @@
+source_id: tt-root-info
+source_type: git_tree
+display_name: tt-root canonical information
+visibility: private
+owner: tomasz
+refresh_policy: on_commit
+rights_policy: personal_reference
+adapter_version: git-tree/1
+root: D:\src\tt-root.git\info
+include:
+  - "**/*.md"
+  - "**/*.txt"
+  - "**/*.yaml"
+exclude:
+  - ".git/**"
+  - "atlas/**"
+  - "learning/**"
+  - "compass/**"

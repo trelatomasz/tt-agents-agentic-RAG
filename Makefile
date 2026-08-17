@@ -5,15 +5,17 @@ ENVIRONMENT ?= dev
 INVOKER ?= user:$(shell gcloud config get-value account 2>/dev/null)
 IMAGE ?= $(REGION)-docker.pkg.dev/$(PROJECT_ID)/tt-rag-parts/api:$(shell git rev-parse --short HEAD)
 
-.PHONY: sync test eval lint image plan deploy smoke
+.PHONY: sync test eval demo lint image plan deploy smoke
 sync:
 	uv sync
 test:
 	uv run pytest -q
 eval:
 	PYTHONPATH=src uv run python evals/run_eval.py
+demo:
+	PYTHONPATH=src uv run python scripts/personal_rag_demo.py
 lint:
-	uv run ruff check src tests evals
+	uv run ruff check src tests evals scripts
 image:
 	gcloud builds submit --tag $(IMAGE) .
 plan:
