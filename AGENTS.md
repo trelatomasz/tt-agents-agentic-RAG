@@ -49,3 +49,23 @@
    - All PRs targeting `main` must strictly come from `dev`.
    - All PRs targeting `dev` must come from feature branches.
    - Direct pushes to `main` and `dev` are strictly forbidden.
+
+---
+
+## 4. Execution Environments & Directory Paths (Windows vs. WSL)
+
+> **CRITICAL ENVIRONMENT SEPARATION MANDATE**:
+> Python virtual environments (`.venv`) and binaries are platform-dependent and **must not be shared or cross-executed** between Windows and WSL. Each environment operates in its own dedicated directory with an isolated `.venv`.
+
+1. **Windows Environment**:
+   - **Working Directory**: `D:\src\tt-agents-agentic-RAG.gh.public.git`
+   - **Scope**: Windows PowerShell, local file editing, Windows-native `uv` and Python commands using the Windows `.venv`.
+
+2. **WSL (Linux) Environment**:
+   - **Working Directory**: `/home/ttrela/src/tt-agents-agentic-RAG.gh.public.git`
+   - **Scope**: `gcloud` CLI, OpenTofu (`tofu`), cloud provisioning, and Linux-native `uv`/Python commands using the WSL `.venv`.
+
+3. **Strict Command Routing**:
+   - When executing commands on Windows, always target `D:\src\tt-agents-agentic-RAG.gh.public.git`.
+   - When executing commands in WSL, always target `/home/ttrela/src/tt-agents-agentic-RAG.gh.public.git`.
+
