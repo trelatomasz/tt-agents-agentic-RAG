@@ -34,8 +34,8 @@ versioned artifacts and an evidence link before the next dependent slice starts.
 
 | Phase | Scope | Exit condition | Depends on |
 |---|---|---|---|
-| 0. Contracts | Source descriptors, adapters, document versions, chunks, citations and ingestion runs | Contract schemas and in-process contract tests pass | None |
-| 1. Local baseline | One Markdown file through normalize → chunk → index → search → cited answer | End-to-end local demo and negative-query tests pass | Phase 0 |
+| 0. Contracts ✅ | Source descriptors, adapters, document versions, chunks, citations and ingestion runs | Contract schemas and in-process contract tests pass | None |
+| 1. Local baseline ✅ | One Markdown file through normalize → chunk → index → search → cited answer | End-to-end local demo and negative-query tests pass | Phase 0 |
 | 2. First sources | `tt-root/info`, one web page and Windows PDF/EPUB ingestion | Each source has provenance, idempotency and parser-failure tests | Phase 1 |
 | 3. Durable index | Cloud Storage artifacts, Cloud SQL schema, `pgvector`, full-text search and active-index pointer | Candidate index rebuild, evaluation and rollback succeed | Phase 2 |
 | 4. Query platform | Generic search/answer API, hybrid retrieval, grounding, abstention and source ACL filters | Authenticated API returns verifiable citations and blocks unauthorized evidence | Phase 3 |
@@ -52,33 +52,54 @@ is deliberately outside the first release.
 | ID | Capability | Status | Current evidence | Next action / gap |
 |---|---|---|---|---|
 | P-00 | Existing GPC parts RAG vertical slice | Implemented | `src/gpc_rag/`, 11 tests, five-case evaluation | Preserve compatibility while adding generic modules |
-| P-01 | Generic source adapter contract | Pending | Section 5 specification only | Create `src/personal_rag/sources/base.py` and contract tests |
-| P-02 | Canonical document/chunk/citation schemas | Pending | Section 6 specification only | Add Pydantic/domain models and manifest examples |
-| P-03 | In-process fake index for local development | Pending | No generic index exists | Build the smallest test double before GCP persistence |
-| P-04 | Windows PDF/EPUB folder ingestion | Pending | CLI contract in Section 8.1 | Implement dry-run, hashing, parser errors and resumable manifests |
+| P-01 | Generic source adapter contract | Implemented | `src/personal_rag/sources/base.py`, `sources/filesystem.py`, contract tests | Add web, `git_tree` and `repository_ci` adapters against the same protocol |
+| P-02 | Canonical document/chunk/citation schemas | Implemented | `src/personal_rag/models.py`, `data/personal/sources/*.yaml`, contract tests | Extend locators for page, chapter and line-range sources in Phase 2 |
+| P-03 | In-process fake index for local development | Implemented | `src/personal_rag/index/memory.py`, `tests/personal_rag/test_memory_index.py` | Keep it as the reference behaviour the Cloud SQL index must match |
+| P-04 | Windows PDF/EPUB folder ingestion | Partial | Text-only `FilesystemAdapter` with hashing, escape guard and parser errors | Add PDF/EPUB parsing, page/chapter locators and resumable manifests |
 | P-05 | Web-page ingestion | Pending | CLI contract and SSRF requirements in Section 8.2 | Implement HTTPS/redirect/robots/size controls and main-content parsing |
 | P-06 | `tt-root/info` Git-aware ingestion | Pending | Source boundary in Section 8.3 | Index Markdown/text/YAML with commit, path and heading provenance |
 | P-07 | Repository CI/CD indexer | Pending | `rag-index` contract in Section 8.4 | Implement changed-file manifest, `.ragignore`, tombstones and retries |
-| P-08 | Shared normalize/chunk/enrich pipeline | Pending | Pipeline design in Section 7 | Add source-independent stages and versioned parser/chunker metadata |
+| P-08 | Shared normalize/chunk/enrich pipeline | Partial | `src/personal_rag/pipeline/`, idempotency and tombstone tests | Add PDF/EPUB and code-aware chunking; stages and versioning are in place |
 | P-09 | Cloud Storage raw/normalized artifacts | Partial | Existing GPC catalog bucket in `deployment/gcp/main.tf` | Generalize bucket layout and immutable source snapshots |
 | P-10 | Cloud SQL PostgreSQL metadata/index | Pending | Architecture decision in Section 4 | Add schema, migrations, ACL columns and active-index pointer |
-| P-11 | Dense embeddings for personal corpus | Pending | Existing Vertex generation only | Add version-pinned Vertex embedding job and cost accounting |
-| P-12 | Sparse + dense hybrid retrieval | Pending | Existing GPC search is lexical and parts-specific | Implement full-text/vector retrieval and RRF fusion |
+| P-11 | Dense embeddings for personal corpus | Partial | `Embedder` protocol and offline `HashingEmbedder` | Add the version-pinned Vertex embedder, batching and cost accounting |
+| P-12 | Sparse + dense hybrid retrieval | Partial | BM25 plus cosine fused with RRF in `index/memory.py` | Reimplement over PostgreSQL full-text search and `pgvector` |
 | P-13 | Reranking | Not covered | Only specified as conditional in Section 9 | Add after hybrid recall is measured; do not pre-optimize |
 | P-14 | Generic `/v1/search` and `/v1/answer` API | Pending | Existing `/v1/answers` is GPC-specific | Add generic typed contracts without breaking GPC clients |
-| P-15 | Grounding, citations and abstention | Partial | Existing citation validation in `src/gpc_rag/service.py` | Generalize validation to chunk IDs, source versions and claim evidence |
-| P-16 | Source-level ACL filtering | Pending | Threat model documents the requirement | Enforce principal-derived filters before both retrieval paths |
+| P-15 | Grounding, citations and abstention | Partial | `query/grounding.py` validates chunk IDs; abstention tests pass | Add claim-level entailment and source-version staleness checks |
+| P-16 | Source-level ACL filtering | Partial | `MemoryIndex.search` filters labels before lexical and dense ranking | Enforce the same filter in SQL so it survives the Cloud SQL rewrite |
 | P-17 | Read-only MCP agent adapter | Pending | MCP tools specified in Section 9 | Implement adapter over HTTPS; expose no database or ingestion mutation |
 | P-18 | CI authentication with Workload Identity Federation | Pending | GCP choice documented; no resource exists | Add restricted provider, service account and reusable workflow |
 | P-19 | Personal GCP Terraform deployment | Partial | GPC Cloud Run deployment exists | Add Cloud SQL, jobs, bucket layout, IAM and environment separation |
 | P-20 | Personal evaluation corpus and release gates | Pending | Existing five-case GPC evaluation only | Add source-balanced golden, negative, ACL and injection datasets |
 | P-21 | Observability, freshness and cost telemetry | Partial | Structured GPC completion logs and SLO docs exist | Add metrics/traces, ingestion lag, embedding cost and dashboards |
 | P-22 | Security and rights controls | Partial | Existing threat model; no generic connectors | Implement web SSRF controls, secret scanning, rights policy and redaction |
-| P-23 | Rollback and candidate-index activation | Partial | GPC release docs describe rollback | Implement candidate/active index transaction and drill it |
+| P-23 | Rollback and candidate-index activation | Partial | Candidate runs, atomic activation and `rollback()` with tests | Drill the same transaction against Cloud SQL and Cloud Storage |
 | P-24 | OCR, audio, video, image and graph RAG | Not covered | Explicit first-release non-goals | Reconsider only after text corpus quality is measured |
 
-The first implementation checkpoint is **P-01 through P-03**. No source-specific adapter
-should be treated as production-ready until the shared contract and local fake index exist.
+The first implementation checkpoint, **P-01 through P-03**, is complete. Phases 0 and 1 are
+delivered: contracts and protocols in `src/personal_rag/{models,errors}.py`,
+`sources/base.py` and `index/base.py`; the local baseline in `pipeline/`, `index/memory.py`
+and `query/`. Evidence is 55 tests under `tests/personal_rag/` plus `make demo`, which
+takes a Markdown file from disk to a cited answer and fails if an unsupported question is
+answered instead of refused.
+
+Phase 1 runs with no GCP resources and no model provider. `HashingEmbedder` and
+`DeterministicAnswerGenerator` stand in behind the protocols their Vertex counterparts will
+implement, which is what keeps the release gate hermetic. Two calibration values —
+`MemoryIndex.dense_floor` and `QueryService.min_retrieval_score` — were derived from the
+hashing embedder's score distribution and must be re-derived in Phase 3, because a trained
+embedding model has a completely different baseline similarity.
+
+One deliberate divergence from section 7: the 400-800 token range is enforced as a ceiling
+rather than a floor. Heading sections are never merged, so a document of short sections
+produces chunks below the target (54-166 tokens in the sample corpus). Merging siblings to
+reach a token count would give a chunk an ambiguous `heading_path` and a citation spanning
+two topics. Section 7 already asks for this number to be tuned against retrieval recall, so
+P-20 should decide it with measurements rather than the register asserting it now.
+
+Phase 2 is next: the web and `git_tree` adapters (P-05, P-06) and PDF/EPUB parsing (P-04),
+all against the now-fixed `SourceAdapter` protocol.
 
 ## 2. Goals and non-goals
 
@@ -539,35 +560,45 @@ Release gates:
 
 ## 12. Repository layout proposal
 
+A tick marks what exists after Phases 0 and 1; the rest is the target shape.
+
 ```text
 src/personal_rag/
+  models.py            ✅ canonical contracts (sections 5, 6 and 9)
+  errors.py            ✅ typed ingestion and query failures
   sources/
-    base.py
-    filesystem.py
+    base.py            ✅ SourceAdapter protocol and descriptor loading
+    filesystem.py      ✅ text formats; PDF/EPUB in Phase 2
     web.py
     git_tree.py
     repository_ci.py
   pipeline/
-    normalize.py
-    chunk.py
-    enrich.py
-    embed.py
-    publish.py
+    normalize.py       ✅
+    chunk.py           ✅ Markdown headings, code and tables
+    enrich.py          ✅
+    embed.py           ✅ Embedder protocol and offline HashingEmbedder
+    publish.py         ✅ run orchestration, idempotency, tombstones
   index/
+    base.py            ✅ DocumentIndex protocol
+    memory.py          ✅ in-process hybrid index with candidate/active runs
     repository.py
     hybrid_search.py
     migrations/
   query/
-    service.py
-    grounding.py
+    service.py         ✅ search, evidence budget, bounded generation
+    grounding.py       ✅ citation validation
   api/
     http.py
     mcp.py
 scripts/
+  personal_rag_demo.py ✅ Phase 1 end-to-end check
   ingest_filesystem.py
   ingest_web.py
   ingest_tt_root_info.py
   rag_index.py
+data/personal/
+  sources/*.yaml       ✅ descriptor manifests
+  notes/*.md           ✅ Phase 1 sample corpus
 evals/
   datasets/
   reports/
