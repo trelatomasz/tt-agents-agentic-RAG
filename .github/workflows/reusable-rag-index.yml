@@ -18,12 +18,16 @@ on:
         required: false
         type: boolean
         default: false
-    secrets:
-      GCP_WIF_PROVIDER:
+      wif_provider:
+        description: "GCP Workload Identity Provider resource name"
         required: false
-      GCP_WIF_SERVICE_ACCOUNT:
+        type: string
+        default: ""
+      wif_service_account:
+        description: "GCP Workload Identity Service Account email"
         required: false
-  workflow_dispatch:
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -40,11 +44,11 @@ jobs:
           fetch-depth: 2
 
       - name: Authenticate to GCP via WIF
-        if: ${{ secrets.GCP_WIF_PROVIDER != '' && secrets.GCP_WIF_SERVICE_ACCOUNT != '' }}
+        if: inputs.wif_provider != '' && inputs.wif_service_account != ''
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
-          service_account: ${{ secrets.GCP_WIF_SERVICE_ACCOUNT }}
+          workload_identity_provider: ${{ inputs.wif_provider }}
+          service_account: ${{ inputs.wif_service_account }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
