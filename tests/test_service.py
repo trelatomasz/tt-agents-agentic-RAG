@@ -19,7 +19,9 @@ def catalog() -> Catalog:
 
 @pytest.mark.asyncio
 async def test_answer_contains_versioned_citations():
-    result = await RagService(catalog(), DeterministicGenerator(), 3600, 4).ask("brake pad for Aster Compact", "req-1", 1)
+    result = await RagService(catalog(), DeterministicGenerator(), 3600, 4).ask(
+        "brake pad for Aster Compact", "req-1", 1
+    )
     assert result.citations[0].part_id == "BRK-100"
     assert result.citations[0].catalog_version == result.catalog_version
     assert result.retrieval_score > 0.5
@@ -28,7 +30,9 @@ async def test_answer_contains_versioned_citations():
 @pytest.mark.asyncio
 async def test_unknown_query_abstains():
     with pytest.raises(NoEvidenceError):
-        await RagService(catalog(), DeterministicGenerator(), 3600, 4).ask("windscreen wiper", "req-2", 1)
+        await RagService(catalog(), DeterministicGenerator(), 3600, 4).ask(
+            "windscreen wiper", "req-2", 1
+        )
 
 
 @pytest.mark.asyncio
@@ -71,9 +75,7 @@ async def test_generator_without_allowed_citation_fails_closed():
 @pytest.mark.asyncio
 async def test_low_confidence_product_match_abstains():
     with pytest.raises(NoEvidenceError):
-        await RagService(catalog(), DeterministicGenerator(), 3600, 4).ask(
-            "engine", "req-7", 1
-        )
+        await RagService(catalog(), DeterministicGenerator(), 3600, 4).ask("engine", "req-7", 1)
 
 
 @pytest.mark.asyncio

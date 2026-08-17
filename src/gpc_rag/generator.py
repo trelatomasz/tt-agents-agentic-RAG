@@ -20,7 +20,12 @@ class DeterministicGenerator:
 
 class VertexGenerator:
     def __init__(self, project: str, location: str, model_id: str):
-        self.client = genai.Client(vertexai=True, project=project, location=location, http_options=HttpOptions(api_version="v1"))
+        self.client = genai.Client(
+            vertexai=True,
+            project=project,
+            location=location,
+            http_options=HttpOptions(api_version="v1"),
+        )
         self.model_id = model_id
 
     async def generate(self, query: str, parts: list[Part]) -> str:
@@ -31,7 +36,9 @@ class VertexGenerator:
             f"QUESTION: {query}\nEVIDENCE: {json.dumps(evidence)}"
         )
         response = await asyncio.to_thread(
-            self.client.models.generate_content, model=self.model_id, contents=prompt,
+            self.client.models.generate_content,
+            model=self.model_id,
+            contents=prompt,
             config=GenerateContentConfig(temperature=0, max_output_tokens=500),
         )
         return response.text or "Compatibility cannot be verified from the available catalog."
