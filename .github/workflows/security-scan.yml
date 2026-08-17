@@ -1,0 +1,23 @@
+name: Security & Secret Leak Scanner
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  secret-scan:
+    name: Secret & Identity Leak Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run Secret & Identity Leak Scanner
+        run: python scripts/security_check.py
