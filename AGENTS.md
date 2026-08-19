@@ -1,4 +1,4 @@
-﻿# Repository Development Standards & Security Rules
+# Repository Development Standards & Security Rules
 
 > **CRITICAL MANDATE: ZERO IDENTITY OR CREDENTIAL LEAKS**
 > This repository is **100% PUBLIC**. Under NO circumstances may any personal identity, account email, real GCP Project ID, billing info, private key, token, or secret ever be written to files, committed to git, or included in pull requests.
@@ -49,8 +49,8 @@ gitGraph
 - **Environment Parity (`dev` vs. `prod`)**:
   - Codebase is identical across both environments (12-Factor principle).
   - Environments differ **only** by configuration and credentials stored in environment variables, Secret Manager, or GitHub Environment secrets.
-  - **Dev Deployment**: Automatically deployed on every merge to `main`.
-  - **Prod Promotion**: Promoted from a validated `main` commit by creating a Git release tag (e.g., `v1.0.0`) or via manual promotion approval.
+  - **CI Validation**: Runs tests, linting, evaluations, and security scans on push to `main`.
+  - **Deployments**: Triggered explicitly via Git release tags (e.g., `v1.0.0`) or manual workflow dispatch. Untagged commits do not deploy automatically.
 
 ### Strict Workflow Rules
 1. **Branch Off `main`**: Always create new feature, fix, or chore branches off the latest `main`.
