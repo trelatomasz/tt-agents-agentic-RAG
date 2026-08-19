@@ -29,35 +29,34 @@
 
 ---
 
-## 2. Git Branching Model & PR Workflow
+## 2. Git Branching Model & Release Workflow (Trunk-Based)
 
 ```mermaid
 gitGraph
    commit id: "init"
-   branch dev
-   checkout dev
-   commit id: "dev-base"
+   commit id: "base"
    branch feat/add-feature
    checkout feat/add-feature
    commit id: "feat-work"
-   checkout dev
-   merge feat/add-feature id: "PR -> dev"
    checkout main
-   merge dev id: "PR -> main (Release)"
+   merge feat/add-feature id: "PR -> main (Deploy dev)"
+   commit id: "tag: v1.0.0 (Promote prod)" tag: "v1.0.0"
 ```
 
-### Branch Roles
-- **`main`**: Production-ready branch. Contains deployable releases.
-- **`dev`**: Active integration branch for validated work and staging.
-- **`feature/*` / `fix/*` / `chore/*`**: Short-lived task or bug fix branches.
+### Branch & Environment Architecture
+- **`main`**: The single trunk branch and source of truth. Always deployable and tested.
+- **`feature/*` / `fix/*` / `chore/*`**: Short-lived task or bug fix branches created off `main`.
+- **Environment Parity (`dev` vs. `prod`)**:
+  - Codebase is identical across both environments (12-Factor principle).
+  - Environments differ **only** by configuration and credentials stored in environment variables, Secret Manager, or GitHub Environment secrets.
+  - **Dev Deployment**: Automatically deployed on every merge to `main`.
+  - **Prod Promotion**: Promoted from a validated `main` commit by creating a Git release tag (e.g., `v1.0.0`) or via manual promotion approval.
 
 ### Strict Workflow Rules
-1. **Branch Off `dev`**: Always create new feature, fix, or chore branches off the latest `dev`.
-2. **Pull Requests Only**:
-   - Feature and fix branches merge into `dev` via Pull Request.
-   - `dev` merges into `main` via Pull Request (releases).
-3. **No Direct Pushes**: Direct pushes to `main` and `dev` are strictly forbidden.
-4. **Clean History**: Ensure branches are rebased or synced with `dev` before opening a PR.
+1. **Branch Off `main`**: Always create new feature, fix, or chore branches off the latest `main`.
+2. **Pull Requests Only**: All changes merge into `main` strictly via Pull Request.
+3. **No Direct Pushes**: Direct pushes to `main` are strictly forbidden.
+4. **Clean History**: Ensure branches are rebased or synced with `main` before opening a PR.
 
 ---
 
@@ -110,6 +109,7 @@ gitGraph
 
 1. **Secrets vs Variables**:
    - All environment-specific identifiers (`GCP_PROJECT_ID`, `GCP_WIF_PROVIDER`, etc.) must be referenced as GitHub **Secrets** (`${{ secrets.GCP_PROJECT_ID }}`) or masked dynamically so they are never printed to public build logs.
-2. **Pull Requests**:
-   - All PRs targeting `main` must strictly come from `dev`.
-   - All PRs targeting `dev` must come from feature branches.
+2. **Pull Requests & Deployments**:
+   - All PRs must target `main` from short-lived feature branches.
+   - Direct pushes to `main` are strictly forbidden.
+   - Tagged releases (e.g., `v*.*.*`) or promotion workflows trigger production deployments.
