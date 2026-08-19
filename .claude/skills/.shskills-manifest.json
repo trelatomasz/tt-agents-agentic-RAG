@@ -1,0 +1,24 @@
+{
+  "version": "1",
+  "agent": "claude",
+  "dest": ".claude\\skills",
+  "updated_at": "2026-08-19T05:04:32.396899Z",
+  "source": {
+    "url": null,
+    "path": "SKILLS",
+    "ref": "main",
+    "subpath": null
+  },
+  "skills": {
+    "commit-trailer": {
+      "name": "commit-trailer",
+      "source_path": "commit-trailer",
+      "dest_path": ".claude\\skills\\commit-trailer",
+      "content_sha256": "e5cac8bd6f889247082aeca10521718d7940016b3bb94419485dacf411be432a",
+      "installed_at": "2026-08-19T05:04:32.396308Z",
+      "files": [
+        "SKILL.md"
+      ]
+    }
+  }
+}

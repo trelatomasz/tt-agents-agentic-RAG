@@ -14,3 +14,16 @@ pythonpath = ["src"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+
+[tool.shskills]
+path = "SKILLS"
+
+[tool.shskills.claude]
+skills = ["commit-trailer"]
+
+[tool.shskills.antigravity]
+skills = ["commit-trailer"]
+
+[tool.shskills.codex]
+skills = ["commit-trailer"]
+

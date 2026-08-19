@@ -15,12 +15,8 @@ resource "google_sql_database_instance" "postgres" {
 
   settings {
     tier              = var.db_tier
+    edition           = "ENTERPRISE"
     availability_type = "ZONAL"
-
-    database_flags {
-      name  = "cloudsql.enable_pgvector"
-      value = "on"
-    }
 
     backup_configuration {
       enabled    = true
