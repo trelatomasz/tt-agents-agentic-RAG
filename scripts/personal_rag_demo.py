@@ -10,6 +10,10 @@ Exits non-zero if either fails, so `make demo` is a check rather than a printout
 
 import asyncio
 import json
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from personal_rag.errors import NoEvidenceError
 from personal_rag.index.memory import MemoryIndex
