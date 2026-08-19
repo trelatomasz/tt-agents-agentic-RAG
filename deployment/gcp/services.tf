@@ -4,7 +4,10 @@ resource "google_cloud_run_v2_service" "api" {
   location            = var.region
   deletion_protection = false
   ingress             = "INGRESS_TRAFFIC_ALL"
-  depends_on          = [google_project_service.required]
+  depends_on = [
+    google_project_service.required,
+    google_secret_manager_secret_version.database_url
+  ]
 
   template {
     service_account                  = google_service_account.runtime.email
@@ -115,7 +118,10 @@ resource "google_cloud_run_v2_job" "ingest" {
   name                = "${var.environment}-personal-rag-ingest"
   location            = var.region
   deletion_protection = false
-  depends_on          = [google_project_service.required]
+  depends_on = [
+    google_project_service.required,
+    google_secret_manager_secret_version.database_url
+  ]
 
   template {
     task_count = 1
