@@ -2,7 +2,8 @@ name: Deploy to GCP
 
 on:
   push:
-    branches: [ main, dev ]
+    branches: [ main ]
+    tags: [ 'v*.*.*', 'v*' ]
   workflow_dispatch:
     inputs:
       environment:
@@ -27,11 +28,11 @@ jobs:
   build-and-deploy:
     name: Build, Provision & Deploy
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment || (github.ref == 'refs/heads/main' && 'prod' || 'dev') }}
+    environment: ${{ inputs.environment || (startsWith(github.ref, 'refs/tags/v') && 'prod' || 'dev') }}
     env:
       PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
       REGION: ${{ vars.GCP_REGION || 'europe-west1' }}
-      ENVIRONMENT: ${{ inputs.environment || (github.ref == 'refs/heads/main' && 'prod' || 'dev') }}
+      ENVIRONMENT: ${{ inputs.environment || (startsWith(github.ref, 'refs/tags/v') && 'prod' || 'dev') }}
       WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
       WIF_SERVICE_ACCOUNT: ${{ vars.GCP_WIF_SERVICE_ACCOUNT }}
       TF_STATE_BUCKET: ${{ vars.GCP_TF_STATE_BUCKET }}
@@ -128,7 +129,7 @@ jobs:
             -out=tfplan
 
       - name: OpenTofu Apply
-        if: steps.check_config.outputs.gcp_configured == 'true' && (github.ref == 'refs/heads/main' || inputs.auto_approve == true)
+        if: steps.check_config.outputs.gcp_configured == 'true' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || inputs.auto_approve == true)
         run: tofu -chdir=deployment/gcp apply -auto-approve tfplan
 
       - name: Verify Deployment Health
