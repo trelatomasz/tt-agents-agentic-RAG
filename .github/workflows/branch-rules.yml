@@ -1,8 +1,8 @@
-name: Branch Flow Policy Enforcement
+﻿name: Branch Flow Policy Enforcement
 
 on:
   pull_request:
-    branches: [ main, dev ]
+    branches: [ main ]
     types: [ opened, synchronize, reopened, ready_for_review ]
 
 jobs:
@@ -10,24 +10,13 @@ jobs:
     name: Validate PR Branch Flow
     runs-on: ubuntu-latest
     steps:
-      - name: Verify main target PR source branch
+      - name: Verify PR source branch targeting main
         if: github.base_ref == 'main'
         run: |
           echo "Target branch is 'main'."
           echo "Source branch (head_ref) is '${{ github.head_ref }}'."
-          if [ "${{ github.head_ref }}" != "dev" ]; then
-            echo "::error::Direct PRs to 'main' from '${{ github.head_ref }}' are forbidden. Pull requests to 'main' must only come from 'dev'."
-            exit 1
-          fi
-          echo "PR source branch '${{ github.head_ref }}' is valid for target 'main'."
-
-      - name: Verify dev target PR source branch
-        if: github.base_ref == 'dev'
-        run: |
-          echo "Target branch is 'dev'."
-          echo "Source branch (head_ref) is '${{ github.head_ref }}'."
           if [ "${{ github.head_ref }}" == "main" ]; then
-            echo "::error::PRs from 'main' into 'dev' are not allowed."
+            echo "::error::PRs from 'main' into 'main' are invalid."
             exit 1
           fi
-          echo "PR source branch '${{ github.head_ref }}' is valid for target 'dev'."
+          echo "PR source branch '${{ github.head_ref }}' is valid for target 'main' under Trunk-Based Development."
