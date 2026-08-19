@@ -15,14 +15,15 @@ Every commit created by AI agent MUST include at AI attribution trailer in the c
 ### Required Trailer Format
 Co-authored-by: <AgentName> <modelname>@<provider>
 
-### Agents to Include
-- Codex by openai.com
-- Gemini by google.com
-- Claude by anthropic.com
+### Recognized Agents
+- Codex: `Co-authored-by: Codex codex@openai.com`
+- Gemini: `Co-authored-by: Gemini gemini@google.com`
+- Claude: `Co-authored-by: Claude claude@anthropic.com`
 
 ### Behavior
-- If the commit message does not contain any Co-authored-by trailer, automatically append all configured AI agents.
-- If the commit already contains human co-authors, append AI co-authors after them.
+- Only the specific AI agent(s) who assisted with or authored the changes (the agent making the commit) MUST be included in the `Co-authored-by:` trailer. Do NOT append all configured AI agents.
+- If multiple AI agents collaborated on the commit, include trailers for each collaborating agent.
+- If the commit already contains human co-authors, append AI co-author(s) after them.
 - Do NOT remove or modify existing trailers.
 
 ### Enforcement
