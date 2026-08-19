@@ -2,7 +2,6 @@ name: Deploy to GCP
 
 on:
   push:
-    branches: [ main ]
     tags: [ 'v*.*.*', 'v*' ]
   workflow_dispatch:
     inputs:
@@ -129,7 +128,7 @@ jobs:
             -out=tfplan
 
       - name: OpenTofu Apply
-        if: steps.check_config.outputs.gcp_configured == 'true' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || inputs.auto_approve == true)
+        if: steps.check_config.outputs.gcp_configured == 'true' && (startsWith(github.ref, 'refs/tags/v') || inputs.auto_approve == true)
         run: tofu -chdir=deployment/gcp apply -auto-approve tfplan
 
       - name: Verify Deployment Health
