@@ -3,16 +3,36 @@
 The proposed personal multi-source platform is specified in
 [`personal-rag-spec.md`](personal-rag-spec.md). This document remains the GPC pilot
 architecture and compatibility boundary.
+```plantuml
+@startuml "01-system-context"
+!include diagrams/01-system-context.puml
+@enduml
+```
 
-```mermaid
-flowchart LR
-  user["Authenticated internal user"] --> run["Private Cloud Run FastAPI"]
-  run --> bucket["Versioned Cloud Storage catalog"]
-  run --> vertex["Vertex AI Gemini"]
-  run --> logs["Cloud Logging and Monitoring"]
-  tofu["OpenTofu"] --> run
-  tofu --> bucket
-  tofu --> iam["Least-privilege IAM"]
+```plantuml
+@startuml "architecture-overview"
+!include <C4/C4_Container>
+
+LAYOUT_WITH_LEGEND()
+
+title GPC Parts RAG Pilot - Container Boundary
+
+Person(user, "Authenticated internal user", "Queries vehicle parts and reviews grounded fitment answers.")
+Container(run, "Private Cloud Run FastAPI", "FastAPI / Python 3.13", "Stateless serving container with fitment search and Gemini grounding.")
+ContainerDb(bucket, "Versioned Cloud Storage catalog", "Google Cloud Storage", "Stores immutable parts catalog versions.")
+Container_Ext(vertex, "Vertex AI Gemini", "Gemini 2.5 Flash", "Grounded generation at temperature 0.0.")
+Container(logs, "Cloud Logging and Monitoring", "Cloud Operations", "Audit trails and latency metrics.")
+System_Ext(tofu, "OpenTofu", "Provisions Cloud Run, GCS buckets, and IAM roles.")
+
+Rel(user, run, "Sends fitment queries", "HTTPS / API")
+Rel(run, bucket, "Reads catalog slices", "HTTPS / GCS API")
+Rel(run, vertex, "Prompts grounded generation", "HTTPS / Vertex SDK")
+Rel(run, logs, "Emits audit logs", "Cloud Logging")
+
+Rel(tofu, run, "Provisions")
+Rel(tofu, bucket, "Provisions")
+
+@enduml
 ```
 
 The API retrieves bounded, fitment-aware evidence, rejects low-confidence or unsupported

@@ -9,59 +9,74 @@ This directory contains the Infrastructure-as-Code (IaC) definitions, deployment
 
 ## 1. Cloud Architecture Overview
 
-```mermaid
-flowchart TB
-    subgraph GitHub ["GitHub Actions CI/CD (Multi-Environment: dev / prod)"]
-        ci["CI: Test, Lint, Eval & Validate"]
-        cd["CD: Build Image & Deploy (dev / prod)"]
-        wif_auth["OIDC Token Exchange (Keyless)"]
-    end
+```plantuml
+@startuml "cloud-architecture"
+!include <C4/C4_Deployment>
 
-    subgraph GCP ["Google Cloud Platform (europe-west1)"]
-        subgraph Identity ["Identity & Access (Least Privilege)"]
-            wif["Workload Identity Federation (WIF)"]
-            sa_deploy["github-deployer-{env}"]
-            sa_query["rag-query-{env}"]
-            sa_ingest["rag-ingest-{env}"]
-        end
+LAYOUT_WITH_LEGEND()
 
-        subgraph Storage ["Storage & Secrets"]
-            ar["Artifact Registry\n(Container Images)"]
-            gcs_catalog["Cloud Storage: {project}-{env}-catalog\n(Versioned)"]
-            gcs_artifacts["Cloud Storage: {project}-{env}-rag-artifacts\n(Versioned, Lifecycle Managed)"]
-            secrets["Secret Manager: {env}-rag-db-*\n(PostgreSQL Credentials & DSN)"]
-        end
+title GCP Infrastructure & Deployment Pipeline Architecture
 
-        subgraph Database ["Relational & Vector Store"]
-            sql["Cloud SQL: {env}-rag-db-*\n- PostgreSQL 16 + pgvector enabled\n- Full-Text Search (pg_trgm)\n- Query Insights"]
-        end
+Deployment_Node(github, "GitHub Actions CI/CD (Multi-Environment: dev / prod)", "GitHub Hosted Runner") {
+    Container(ci, "CI Workflow", "GitHub Actions", "Test, Lint, Eval & Validate")
+    Container(cd, "CD Workflow", "GitHub Actions", "Build Image & Deploy to dev / prod")
+    Container(wif_auth, "OIDC Authenticator", "GitHub OIDC", "Keyless token exchange")
+}
 
-        subgraph Compute ["Compute Tier"]
-            cr_service["Cloud Run: {env}-tt-rag-parts\n- Private, Ingress Auth\n- Cloud SQL Proxy Mount\n- Scale to 0..20"]
-            cr_job["Cloud Run Job: {env}-personal-rag-ingest\n- Run-to-Completion Batch Ingestion"]
-        end
+Deployment_Node(gcp, "Google Cloud Platform", "Region: europe-west1") {
+    Deployment_Node(identity, "Identity & Access Management", "GCP IAM") {
+        Container(wif, "Workload Identity Federation (WIF)", "IAM WIF", "Exchanges OIDC token for short-lived SA token")
+        Container(sa_deploy, "github-deployer-{env}", "Service Account", "Deployer permissions")
+        Container(sa_query, "rag-query-{env}", "Service Account", "Runtime Query service identity")
+        Container(sa_keycloak, "keycloak-iam-{env}", "Service Account", "Keycloak IAM runtime identity")
+        Container(sa_ingest, "rag-ingest-{env}", "Service Account", "Batch Ingestion Job identity")
+    }
 
-        subgraph AI ["Vertex AI Services"]
-            vertex_gen["Gemini 2.5 Flash (Temp=0)"]
-            vertex_embed["Text Embeddings (text-embedding-005)"]
-        end
-    end
+    Deployment_Node(storage, "Storage & Secrets Tier", "GCP Managed") {
+        Container(ar, "Artifact Registry", "Docker Repository", "Container images")
+        ContainerDb(gcs_catalog, "Catalog Bucket", "GCS Versioned", "gs://{project}-{env}-catalog")
+        ContainerDb(gcs_artifacts, "Artifacts Bucket", "GCS Lifecycle", "gs://{project}-{env}-rag-artifacts")
+        Container(secrets, "Secret Manager", "Secret Manager", "DB credentials, Keycloak admin & DSN")
+    }
 
-    wif_auth --> wif
-    wif --> sa_deploy
-    sa_deploy --> ar
-    sa_deploy --> cr_service
-    sa_deploy --> cr_job
-    sa_deploy --> sql
+    Deployment_Node(database, "Database Tier", "Cloud SQL") {
+        ContainerDb(sql, "Cloud SQL PostgreSQL 16", "pgvector + pg_trgm", "Databases: rag_db & keycloak")
+    }
 
-    cr_service --> sql
-    cr_service --> secrets
-    cr_service --> vertex_gen
-    cr_service --> vertex_embed
+    Deployment_Node(compute, "Compute Tier", "Cloud Run") {
+        Container(cr_keycloak, "Keycloak IAM Service", "HTTPS / OIDC", "OIDC, OAuth2 client credentials & JWKS")
+        Container(cr_service, "Cloud Run Query API", "Private HTTPS", "Stateless Query API with scale-to-zero")
+        Container(cr_job, "Cloud Run Ingest Job", "Batch Worker", "Ephemeral ingestion & indexing")
+    }
 
-    cr_job --> sql
-    cr_job --> gcs_artifacts
-    cr_job --> vertex_embed
+    Deployment_Node(ai, "Vertex AI Tier", "Google AI") {
+        Container(vertex_gen, "Gemini 2.5 Flash", "Model Garden", "Grounded generation (temp=0.0)")
+        Container(vertex_embed, "Text Embeddings", "text-embedding-004", "Dense vector embeddings")
+    }
+}
+
+wif_auth --> wif : Authenticate
+wif --> sa_deploy : Assume role
+sa_deploy --> ar : Push images
+sa_deploy --> cr_keycloak : Deploy
+sa_deploy --> cr_service : Deploy
+sa_deploy --> cr_job : Deploy
+sa_deploy --> sql : Run migrations
+
+cr_keycloak --> sql : Realm & user storage (db: keycloak)
+cr_keycloak --> secrets : Fetch DB & admin credentials
+
+cr_service --> cr_keycloak : Fetch JWKS keys (cached)
+cr_service --> sql : Query vectors & metadata (db: rag_db)
+cr_service --> secrets : Fetch DSN
+cr_service --> vertex_gen : Grounded synthesis
+cr_service --> vertex_embed : Query embeddings
+
+cr_job --> sql : Insert chunks
+cr_job --> gcs_artifacts : Read/Write snapshots
+cr_job --> vertex_embed : Chunk embeddings
+
+@enduml
 ```
 
 ---

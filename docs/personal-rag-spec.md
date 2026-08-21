@@ -144,44 +144,72 @@ all against the now-fixed `SourceAdapter` protocol.
 
 ## 4. Target architecture
 
-```mermaid
-flowchart LR
-    ebooks["Windows ebook folder"] --> fs["Filesystem adapter"]
-    web["Approved web page"] --> webadapter["Web adapter"]
-    info["tt-root/info"] --> infoadapter["Git-aware info adapter"]
-    repos["Project CI/CD"] --> repoadapter["Repository indexer CLI/action"]
+```plantuml
+@startuml "personal-rag-target-architecture"
+!include <C4/C4_Container>
 
-    fs --> pipeline["Ingestion pipeline\nparse -> normalize -> deduplicate -> chunk -> enrich -> embed"]
-    webadapter --> pipeline
-    infoadapter --> pipeline
-    repoadapter --> pipeline
+LAYOUT_WITH_LEGEND()
 
-    pipeline --> gcs["Cloud Storage\nraw and normalized immutable artifacts"]
-    pipeline --> sql["Cloud SQL for PostgreSQL\nmetadata + pgvector + full-text index"]
-    pipeline --> eval["Offline evaluation gate"]
-    eval --> active["Active index pointer"]
+title Personal RAG Platform - Target Architecture Overview
 
-    agent["Authenticated agent"] --> mcp["Read-only MCP adapter"]
-    client["HTTPS client"] --> api["Private Cloud Run query service"]
-    mcp --> api
-    api --> sql
-    api --> vertex["Vertex AI\nembeddings and generation"]
-    api --> logs["Cloud Logging / Monitoring / Trace"]
+Person_Ext(agent, "Authenticated Agent", "Queries read-only MCP adapter with Bearer Token / JWT.")
+Person(client, "HTTPS Client / Researcher", "Submits research and question queries with Bearer Token.")
+System_Ext(ci, "Repository CI", "Publishes commit diffs via Workload Identity Federation (WIF).")
 
-    ci["Repository CI identity"] --> wif["Workload Identity Federation"]
-    wif --> repoadapter
+System_Boundary(rag_system, "Personal RAG Platform (GCP)") {
+    Container(gateway, "Cloud ALB + Cloud Armor", "Edge API Gateway", "Global SSL termination, managed certs, DDoS shield, and rate limiting.")
+    
+    Container(mcp, "Read-Only MCP Server", "Cloud Run (FastMCP / SSE)", "Model Context Protocol read-only gateway.")
+    Container(api, "Query Service API", "Cloud Run (FastAPI / Python 3.13)", "Stateless serving container with Bearer token validation (MVP) and ACL filtering.")
+    Container(pipeline, "Ingestion Pipeline Engine", "Cloud Run Job / CLI", "Parses, normalizes, deduplicates, chunks, enriches, and embeds.")
+    
+    ContainerDb(gcs, "Artifact Storage", "Google Cloud Storage", "Raw and normalized immutable artifacts.")
+    ContainerDb(sql, "Cloud SQL PostgreSQL 16", "PostgreSQL + pgvector", "Database: rag_db (chunks, dense vectors, lexical tsvector, and ACLs).")
+    
+    Container(secrets, "Secret Manager", "GCP Secret Manager", "Stores DB connection string, Vertex API tokens & RAG_API_BEARER_TOKEN.")
+    Container(eval, "Evaluation Gate & Swap", "Orchestrator", "Golden set evaluation and atomic active index pointer swap.")
+    Container(logs, "Cloud Logging / Trace / Monitoring", "Cloud Operations", "OpenTelemetry traces and telemetry.")
+}
+
+System_Ext(keycloak_ext, "Keycloak IAM (Shared Platform)", "External IdP", "Target multi-tenant OIDC/JWKS provider (Future - Out of Scope).")
+System_Ext(vertex, "Vertex AI & Hosted Models", "text-embedding-004, vLLM tuned endpoints & Gemini 2.5 Flash grounded generation.")
+
+client --> gateway : HTTPS / 443
+agent --> gateway : HTTPS / SSE / 443
+
+gateway --> api : Route /v1/*
+gateway --> mcp : Route /mcp/*
+
+mcp --> api : Forward Bearer Token
+api --> secrets : Validate Bearer Token (MVP)
+api ..> keycloak_ext : Validate JWT via JWKS (Target Multi-Tenant)
+api --> sql : Pre-filtered SQL search (db: rag_db)
+api --> vertex : Embeddings & LLM synthesis
+api --> logs : OpenTelemetry spans
+
+ci --> pipeline : Publishes diffs (WIF)
+pipeline --> gcs : Writes snapshots
+pipeline --> sql : Inserts chunks & vectors
+pipeline --> vertex : Requests embeddings
+pipeline --> eval : Staged candidate index
+eval --> sql : Atomic pointer swap
+
+@enduml
 ```
 
 ### GCP component choices
 
 | Component | First implementation | Reason | Upgrade trigger |
 |---|---|---|---|
+| Edge API Gateway | Global External Application Load Balancer + Cloud Armor | Automated Google SSL, DDoS mitigation, rate limiting (120 rpm), and unified path routing | Sustained multi-region traffic requirements |
+| Authentication & Access Control | **MVP**: Pre-shared Bearer Token in Secret Manager<br/>**Target**: External Shared Keycloak IAM (Decoupled) | Streamlined single-user MVP with zero extra infrastructure; standard OAuth2 Resource Server for future multi-tenancy | Multi-user onboarding or shared agent mesh |
 | Query API | Private Cloud Run service | Stateless HTTPS service with scale-to-zero and existing FastAPI base | Sustained latency or concurrency requires a different serving tier |
+| Read-Only MCP Server | Cloud Run service (FastMCP / SSE) | Low-latency streaming tool gateway for autonomous AI agents | Large-scale multi-tenant agent fleets |
 | Batch ingestion | Cloud Run Jobs | Source ingestion, parsing and indexing are run-to-completion workloads | Very large fan-out requires a dedicated data-processing system |
 | Raw and normalized artifacts | Versioned Cloud Storage bucket | Cheap immutable storage and reproducible reprocessing | Retention, legal hold or data-lake requirements change |
 | Metadata and index | Cloud SQL for PostgreSQL with `pgvector` and PostgreSQL full-text search | One transactional store for chunks, metadata, access filters, sparse search and vectors | Corpus size, recall or latency justifies a separate managed vector index |
 | Embeddings | Vertex AI text embedding model, version-pinned in configuration | Centralized GCP identity and a multilingual/code-capable embedding path | Measured quality or cost requires a second embedding provider |
-| Generation | Vertex AI Gemini through the existing provider boundary | Reuse current code, IAM and grounding controls | Cost, latency or quality evaluation justifies routing |
+| Generation | Vertex AI Gemini & vLLM Hosted Models | Domain fine-tuned LoRA models + Gemini 2.5 Flash for frontier multi-hop reasoning | Cost, latency or quality evaluation justifies routing |
 | CI authentication | Workload Identity Federation | No long-lived service-account keys in project repositories | None for the first release |
 | Ingestion coordination | Direct job trigger first; Pub/Sub eventing later | Avoid a queue before incremental volume requires it | Multiple concurrent sources or sustained backlog |
 
@@ -299,19 +327,39 @@ The citation returned to an agent must be able to reconstruct a human-verifiable
 
 ## 7. Ingestion pipeline
 
-```mermaid
-flowchart LR
-    discover[Discover source items] --> fetch[Fetch and parse]
-    fetch --> validate[Validate size, type, rights and metadata]
-    validate --> normalize[Normalize text and structure]
-    normalize --> hash[Hash and deduplicate]
-    hash --> chunk[Structure-aware chunking]
-    chunk --> enrich[Language, headings, ACL and locators]
-    enrich --> embed[Versioned embedding]
-    embed --> candidate[Candidate index]
-    candidate --> eval[Retrieval and safety evaluation]
-    eval -->|pass| activate[Atomic active-index swap]
-    eval -->|fail| quarantine[Quarantine and retain diagnostics]
+```plantuml
+@startuml "personal-rag-ingestion-flow"
+skinparam componentStyle rectangle
+skinparam roundCorner 10
+
+title Ingestion Pipeline Step-by-Step Flow
+
+[1. Discover Source Items] as discover
+[2. Fetch & Parse] as fetch
+[3. Validate Size, Type, Rights & Metadata] as validate
+[4. Normalize Text & Structure (Unicode NFC)] as normalize
+[5. Hash (SHA-256) & Deduplicate] as hash
+[6. Structure-Aware Chunking] as chunk
+[7. Enrich (Language, Headings, ACL, Locators)] as enrich
+[8. Versioned Batch Embeddings] as embed
+[9. Staged Candidate Index] as candidate
+[10. Retrieval & Safety Eval Gate] as eval
+[11. Atomic Active-Index Swap] as activate
+[12. Quarantine & Retain Diagnostics] as quarantine
+
+discover --> fetch
+fetch --> validate
+validate --> normalize
+normalize --> hash
+hash --> chunk
+chunk --> enrich
+enrich --> embed
+embed --> candidate
+candidate --> eval
+eval --> activate : Pass
+eval --> quarantine : Fail
+
+@enduml
 ```
 
 ### Idempotency and deletes

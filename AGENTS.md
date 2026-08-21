@@ -113,3 +113,31 @@ gitGraph
    - All PRs must target `main` from short-lived feature branches.
    - Direct pushes to `main` are strictly forbidden.
    - Tagged releases (e.g., `v*.*.*`) or promotion workflows trigger production deployments.
+
+---
+
+## 7. Architecture Documentation & C4 Modeling Standards
+
+1. **Mandatory C4 Architectural Modeling**:
+   - All architectural specifications, design reviews, and structural documentation across `docs/` MUST follow the **C4 Model** hierarchy:
+     - **Level 1: System Context** (`C4_Context`): Defines high-level actors, external systems, identity boundaries, and overall system boundaries.
+     - **Level 2: Containers** (`C4_Container`): Depicts deployable and runnable units (applications, databases, microservices, workers) and inter-container protocols.
+     - **Level 3: Components** (`C4_Component`): Decomposes individual containers into internal modular blocks, adapters, controllers, and services.
+     - **Level 4: Code / Data** (`C4_Component` / ERDs): Outlines entity-relationship models, schemas, and state machines (kept lightweight or generated).
+     - **Supplementary Views**: Deployment diagrams (`C4_Deployment`) mapping containers to physical/cloud infrastructure, and Dynamic diagrams (`C4_Dynamic`) for runtime/use-case sequence flows.
+
+2. **C4-PlantUML as Primary Architecture-as-Code Standard**:
+   - Use standard **C4-PlantUML** include libraries:
+     - Context: `!include <C4/C4_Context>`
+     - Containers: `!include <C4/C4_Container>`
+     - Components: `!include <C4/C4_Component>`
+     - Deployment: `!include <C4/C4_Deployment>`
+     - Dynamic: `!include <C4/C4_Dynamic>`
+   - Every diagram element must have an explicit name, type/role, technology stack (where applicable), and description.
+   - Every relationship arrow (`Rel`, `Rel_D`, `Rel_R`, etc.) MUST specify an action verb and communication protocol (e.g., `Rel(user, api, "Queries evidence", "HTTPS / JSON")`).
+
+3. **Inline Diagrams Mandate (Diagrams-as-Code)**:
+   - All architectural diagrams MUST be embedded **inline** as code blocks within Markdown files (using ````plantuml ... ```` or ````mermaid ... ```` for simple flowcharts/state machines).
+   - Never commit binary, rasterized image files (PNG, JPEG, etc.) for architectural diagrams; diagrams must remain version-controlled, diffable, and editable as code in Git.
+   - Follow zero-leak and redaction rules inside diagram definitions: never include real account emails, real GCP project IDs, or machine-specific absolute file paths in diagram nodes or labels.
+
