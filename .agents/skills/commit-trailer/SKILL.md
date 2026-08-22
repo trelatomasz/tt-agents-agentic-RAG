@@ -13,12 +13,12 @@ To ensure transparency, provenance, and accountability for all code contribution
 Every commit created by AI agent MUST include at AI attribution trailer in the commit message.
 
 ### Required Trailer Format
-Co-authored-by: <AgentName> <modelname>@<provider>
+`Co-authored-by: <CODING AGENT> <MODEL-NAME_AND_VERSION> <email>`
 
-### Recognized Agents
-- Codex: `Co-authored-by: Codex codex@openai.com`
-- Gemini: `Co-authored-by: Gemini gemini@google.com`
-- Claude: `Co-authored-by: Claude claude@anthropic.com`
+### Examples
+- Antigravity / Gemini: `Co-authored-by: Antigravity Gemini 3.6 Flash gemini@google.com`
+- Claude Code: `Co-authored-by: Claude Sonnet 3.7 claude@anthropic.com`
+- Codex / OpenAI: `Co-authored-by: Codex GPT-4o codex@openai.com`
 
 ### Behavior
 - Only the specific AI agent(s) who assisted with or authored the changes (the agent making the commit) MUST be included in the `Co-authored-by:` trailer. Do NOT append all configured AI agents.

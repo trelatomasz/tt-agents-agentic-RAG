@@ -65,10 +65,12 @@ gitGraph
 1. **Conventional Commits**: Format commit titles as `<type>(<scope>): <short description>`.
    - Examples: `feat(api): add healthcheck endpoint`, `fix(infra): update cloud sql edition`
 2. **AI Co-Author Attribution**:
-   - When an AI agent assists with or performs a commit, append the acting agent's trailer at the end of the commit message:
-     - **Gemini / Antigravity**: `Co-authored-by: Gemini gemini@google.com`
-     - **Claude Code**: `Co-authored-by: Claude claude@anthropic.com`
-     - **Codex / OpenAI**: `Co-authored-by: Codex codex@openai.com`
+   - When an AI agent assists with or performs a commit, append the acting agent's trailer at the end of the commit message using the format:
+     `Co-authored-by: <CODING AGENT> <MODEL-NAME_AND_VERSION> <email>`
+   - Examples:
+     - **Antigravity / Gemini**: `Co-authored-by: Antigravity Gemini 3.6 Flash gemini@google.com`
+     - **Claude Code**: `Co-authored-by: Claude Sonnet 3.7 claude@anthropic.com`
+     - **Codex / OpenAI**: `Co-authored-by: Codex GPT-4o codex@openai.com`
    - Only attribute the specific agent(s) that actively authored or assisted with the changes in that commit.
 
 ---
@@ -140,4 +142,21 @@ gitGraph
    - All architectural diagrams MUST be embedded **inline** as code blocks within Markdown files (using ````plantuml ... ```` or ````mermaid ... ```` for simple flowcharts/state machines).
    - Never commit binary, rasterized image files (PNG, JPEG, etc.) for architectural diagrams; diagrams must remain version-controlled, diffable, and editable as code in Git.
    - Follow zero-leak and redaction rules inside diagram definitions: never include real account emails, real GCP project IDs, or machine-specific absolute file paths in diagram nodes or labels.
+
+---
+
+## 8. Spec-Driven & Modular Implementation Plan Workflow
+
+1. **Phase 1 — Spec & Architecture Refinement**:
+   - Before writing implementation code, ALWAYS start with the reference specifications (`docs/specs/personal-rag-spec.md` & `docs/architecture.md`).
+   - Refine specification details, verify technical feasibility against existing code/architecture, and formalize any architectural additions or decisions as new Architecture Decision Records (ADRs) in `docs/adr/`.
+   - Apply any specification refinements to the modular implementation plan files before writing code.
+
+2. **Phase 2 — Modular Implementation Plan Execution**:
+   - All implementation tasks MUST be reflected in modular section plan files located under `docs/implementation/` (e.g., `001-section-contracts-and-models.md`, `002-section-source-adapters.md`, etc.).
+   - **Active Section Verification**: Before starting work on a task, the agent or subagent MUST check which specific section file in `docs/implementation/` it is assigned to or working on.
+   - **Section Update & Task Completion**: Upon completing work on a section, the agent MUST update that section file, mark completed tasks as **DONE**, create follow-up sections if new requirements emerge, and document all changes in the section file before proceeding to another section.
+   - **Master Index Assembly**: The main plan (`docs/implementation/plan.md`) acts as the master assembly index linking all modular section files.
+   - **Decoupled Sections for Subagent Concurrency**: Section files MUST be designed as independent, decoupled modules (with explicit upstream/downstream dependency links) so that subagents can safely execute different sections concurrently.
+
 

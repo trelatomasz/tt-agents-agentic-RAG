@@ -35,7 +35,7 @@ package "Governance, Operations & Quality" {
     [09. Evaluation Spectrum\n(RAG Triad, LLM-as-a-Judge, Trajectories)] as EVAL
     [10. Model Optimization\n(PEFT/LoRA, SFT, DPO & vLLM GPU Serving)] as TUNE
     [11. Observability & Drift\n(OpenTelemetry, Metrics, PSI Drift & rag-debug)] as OBS
-    [ADR-001: Rejected Technologies\n(Alternative Analysis & Trade-offs)] as ADR
+    [ADRs: ADR-001 (Rejected Tech), ADR-002 (API Gateway), ADR-003 (Hygiene)] as ADR
 }
 
 L1 --> L2
@@ -71,7 +71,9 @@ L1 ..> ADR
 | [`09-rag-and-agent-evaluations.md`](09-rag-and-agent-evaluations.md) | **Deep Dive: Evaluation Spectrum** | Exhaustive RAG Triad, Retrieval Metrics (NDCG, MRR, Hit Rate), Generation Metrics (Faithfulness, Citation Precision), Agent Trajectory Metrics (Tool accuracy, loops, drift), Frameworks (`Ragas`, `DeepEval`, `TruLens`, `Promptfoo`, `Phoenix`), and LLM-as-a-Judge (G-Eval, Prometheus 2). |
 | [`10-model-optimization-and-tuning.md`](10-model-optimization-and-tuning.md) | **Deep Dive: GCP Model Tuning** | Continued domain pre-training, SFT with PEFT/LoRA/QLoRA on open-weights models (Gemma 2, Llama 3), Direct Preference Optimization (DPO), embedding contrastive fine-tuning (Triplet Loss, Matryoshka), and `vLLM` GPU prediction serving. |
 | [`11-monitoring-and-observability.md`](11-monitoring-and-observability.md) | **Deep Dive: Observability & Drift** | OpenTelemetry/OpenInference distributed tracing, production metrics catalog, multi-dimensional drift detection (PSI, Wasserstein Distance, Jensen-Shannon), and `rag-debug` root-cause debugging CLI. |
-| [`../adr/ADR-001-rejected-technologies.md`](../adr/ADR-001-rejected-technologies.md) | **Architecture Decision Record** | Dedicated analysis documenting all rejected technologies (Pinecone, Qdrant, Weaviate, LangChain, LlamaIndex, AutoGen, Auth0, Elasticsearch, Celery, closed SaaS evals) and trade-off rationale. |
+| [`../adr/0001-rejected-technologies.md`](../adr/0001-rejected-technologies.md) | **ADR-001: Rejected Technologies** | Dedicated analysis documenting all rejected technologies (Pinecone, Qdrant, Weaviate, LangChain, LlamaIndex, AutoGen, Auth0, Elasticsearch, Celery, closed SaaS evals) and trade-off rationale. |
+| [`../adr/0002-api-gateway-and-ingress-architecture.md`](../adr/0002-api-gateway-and-ingress-architecture.md) | **ADR-002: API Gateway & Ingress** | Selection of Cloud Application Load Balancer & Cloud Armor WAF for edge routing, SSL termination, and rate limiting. |
+| [`../adr/0003-public-repository-hygiene-and-identity-sanitization.md`](../adr/0003-public-repository-hygiene-and-identity-sanitization.md) | **ADR-003: Repository Hygiene & Zero-Leak** | Standards for identity redaction, generic placeholders, and specification immutability. |
 
 ---
 
