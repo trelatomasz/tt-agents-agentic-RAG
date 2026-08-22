@@ -185,4 +185,3 @@ def test_domain_error_hierarchy():
     assert issubclass(EmbeddingError, PersonalRagError)
     assert issubclass(AbstentionError, PersonalRagError)
     assert issubclass(NoEvidenceError, AbstentionError)
-
