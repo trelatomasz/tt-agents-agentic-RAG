@@ -243,7 +243,15 @@ def chunk_document(
         packed = _pack(atoms, target_tokens, max_tokens)
         groups.extend(_with_overlap(packed, round(target_tokens * overlap_ratio)))
 
-    template = locator_template or Locator()
+    if locator_template is None:
+        is_url = "://" in version.source_uri
+        template = Locator(
+            path=None if is_url else version.source_uri,
+            url=version.source_uri if is_url else None,
+            commit=version.metadata_json.get("commit"),
+        )
+    else:
+        template = locator_template
     chunks: list[Chunk] = []
     for ordinal, group in enumerate(groups):
         body = "\n\n".join(block.text for block in group).strip()
@@ -257,6 +265,7 @@ def chunk_document(
                 "fragment": _fragment(heading_path) or template.fragment,
             }
         )
+        locator = _source_locator(version, locator)
         chunks.append(
             Chunk(
                 chunk_id=build_chunk_id(version.document_id, version.content_hash, ordinal),
@@ -281,3 +290,21 @@ def _fragment(heading_path: tuple[str, ...]) -> str | None:
         return None
     slug = re.sub(r"[^a-z0-9]+", "-", heading_path[-1].lower()).strip("-")
     return slug or None
+
+
+def _source_locator(version: DocumentVersion, locator: Locator) -> Locator:
+    """Attach page/chapter provenance emitted by binary source adapters."""
+    start = locator.line_start or 1
+    end = locator.line_end or start
+    pages = version.metadata_json.get("pages", [])
+    for page in pages:
+        if int(page.get("line_end", 0)) >= start and int(page.get("line_start", 0)) <= end:
+            return locator.model_copy(update={"page": int(page["page"])})
+    chapters = version.metadata_json.get("chapters", [])
+    for chapter in chapters:
+        if int(chapter.get("line_end", 0)) >= start and int(chapter.get("line_start", 0)) <= end:
+            if locator.fragment:
+                return locator
+            slug = re.sub(r"[^a-z0-9]+", "-", str(chapter.get("name", "")).lower()).strip("-")
+            return locator.model_copy(update={"fragment": slug or locator.fragment})
+    return locator

@@ -1,6 +1,6 @@
 # Master Implementation Plan — Modular Section Assembly
 
-This is the master assembly document for the **Personal Agentic RAG Platform** implementation plan. It coordinates and links the independent, decoupled modular section plans located in [`docs/implementation/`](file:///d:/src/tt-agents-agentic-RAG.gh.public.git/docs/implementation/).
+This is the master assembly document for the **Personal Agentic RAG Platform** implementation plan. It coordinates and links the independent, decoupled modular section plans located in [`docs/implementation/`](./).
 
 ---
 
@@ -9,7 +9,7 @@ This is the master assembly document for the **Personal Agentic RAG Platform** i
 | Section ID & Title | Status | Assigned Subagent | Upstream Dependencies | Primary Target Files | Section Document Link |
 |---|---|---|---|---|---|
 | **001: Core Contracts & Data Models** | `DONE` | `self` | None | `src/personal_rag/models.py`, `errors.py` | [`001-section-contracts-and-models.md`](001-section-contracts-and-models.md) |
-| **002: Source Adapters & Normalization** | `IN_PROGRESS` | `research` / Ingestion Agent | `001` | `src/personal_rag/sources/`, `pipeline/` | [`002-section-source-adapters.md`](002-section-source-adapters.md) |
+| **002: Source Adapters & Normalization** | `DONE` | `research` / Ingestion Agent | `001` | `src/personal_rag/sources/`, `pipeline/` | [`002-section-source-adapters.md`](002-section-source-adapters.md) |
 | **003: Database & Vector Store** | `DONE` | Database Agent | `001`, `002` | `src/personal_rag/index/postgres.py`, `db/` | [`003-section-database-and-vector-store.md`](003-section-database-and-vector-store.md) |
 | **004: FastAPI Query Service & Auth** | `IN_PROGRESS` | API Agent | `003` | `src/personal_rag/query/`, `api/` | [`004-section-fastapi-query-service.md`](004-section-fastapi-query-service.md) |
 | **005: Read-Only FastMCP Agent Server** | `PENDING` | Agent Integration Subagent | `004` | `src/personal_rag/mcp/` | [`005-section-fastmcp-agent-server.md`](005-section-fastmcp-agent-server.md) |

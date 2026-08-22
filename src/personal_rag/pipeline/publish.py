@@ -92,6 +92,9 @@ class IngestionPipeline:
                 f"rights policy {descriptor.rights_policy!r} forbids storing or processing "
                 f"source {descriptor.source_id!r}"
             )
+        register_source = getattr(self.index, "register_source", None)
+        if register_source is not None:
+            register_source(descriptor)
 
         run = IngestionRun(
             run_id=new_run_id("ingest"),
@@ -301,4 +304,5 @@ def _locator_for(item: SourceItem) -> Locator:
     return Locator(
         path=None if is_url else item.source_uri,
         url=item.source_uri if is_url else None,
+        commit=item.metadata.get("commit"),
     )
