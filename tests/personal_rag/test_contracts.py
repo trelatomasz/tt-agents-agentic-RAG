@@ -3,10 +3,19 @@
 import pytest
 from pydantic import ValidationError
 
+from personal_rag.errors import (
+    AbstentionError,
+    ChunkingError,
+    EmbeddingError,
+    NoEvidenceError,
+    PersonalRagError,
+    SourceError,
+)
 from personal_rag.models import (
     Chunk,
     DocumentVersion,
     Locator,
+    NormalizedDocument,
     Principal,
     SearchRequest,
     SourceDescriptor,
@@ -145,3 +154,35 @@ def test_contract_records_are_immutable():
     )
     with pytest.raises(ValidationError):
         chunk.acl_labels = ("public",)
+
+
+def test_normalized_document_contract():
+    version = DocumentVersion(
+        document_id="local:a.md",
+        source_id="local",
+        source_uri="a.md",
+        title="A",
+        media_type="text/markdown",
+        language="en",
+        content_hash=content_hash("body"),
+        source_revision="rev",
+        fetched_at="2026-08-17T00:00:00Z",
+        parser_version="p/1",
+        normalizer_version="n/1",
+        visibility="private",
+        rights_policy="personal_reference",
+    )
+    normalized = NormalizedDocument(version=version, normalized_text="body")
+    assert normalized.document_id == "local:a.md"
+    assert normalized.normalized_text == "body"
+    with pytest.raises(ValidationError):
+        normalized.normalized_text = "changed"
+
+
+def test_domain_error_hierarchy():
+    assert issubclass(SourceError, PersonalRagError)
+    assert issubclass(ChunkingError, PersonalRagError)
+    assert issubclass(EmbeddingError, PersonalRagError)
+    assert issubclass(AbstentionError, PersonalRagError)
+    assert issubclass(NoEvidenceError, AbstentionError)
+
