@@ -218,6 +218,19 @@ class DocumentVersion(BaseModel):
     metadata_json: dict[str, Any] = Field(default_factory=dict)
 
 
+class NormalizedDocument(BaseModel):
+    """Section 6 normalized document record combining DocumentVersion and normalized text."""
+
+    model_config = ConfigDict(frozen=True)
+
+    version: DocumentVersion
+    normalized_text: str = Field(min_length=1)
+
+    @property
+    def document_id(self) -> str:
+        return self.version.document_id
+
+
 class Chunk(BaseModel):
     """Section 6 chunk: the unit that is embedded, retrieved, filtered and cited."""
 

@@ -5,9 +5,9 @@
 - **Assigned Subagent**: `self`
 - **Dependencies**: None
 - **Target Files**:
-  - [`src/personal_rag/models.py`](file:///d:/src/tt-agents-agentic-RAG.gh.public.git/src/personal_rag/models.py)
-  - [`src/personal_rag/errors.py`](file:///d:/src/tt-agents-agentic-RAG.gh.public.git/src/personal_rag/errors.py)
-  - [`tests/personal_rag/test_contracts.py`](file:///d:/src/tt-agents-agentic-RAG.gh.public.git/tests/personal_rag/test_contracts.py)
+  - `src/personal_rag/models.py`
+  - `src/personal_rag/errors.py`
+  - `tests/personal_rag/test_contracts.py`
 
 ---
 
@@ -21,9 +21,10 @@ Define canonical data structures and error hierarchies for heterogeneous knowled
 - [x] [DONE] Verify serialization/deserialization with comprehensive contract unit tests.
 
 ## 3. Changes Implemented & Verification
-- Implemented `DocumentVersion` and `Chunk` in `src/personal_rag/models.py`.
-- Tested in `tests/personal_rag/test_contracts.py`.
-- **Verification**: `pytest tests/personal_rag/test_contracts.py` passes 100%.
+- Implemented `RawDocument`, `NormalizedDocument`, `DocumentVersion`, `Chunk`, `Citation`, `SourceDescriptor`, `Principal`, `Locator`, and `IngestionRun` Pydantic models in `src/personal_rag/models.py`.
+- Implemented typed domain failure hierarchy in `src/personal_rag/errors.py`: `SourceError`, `ChunkingError`, `EmbeddingError`, `AbstentionError`, `NoEvidenceError`, `GroundingError`, `DependencyFailedError`, `RightsViolationError`, `AccessDeniedError`, and `IngestionError`.
+- Added comprehensive unit tests in `tests/personal_rag/test_contracts.py` validating immutability, serialization/deserialization, locator references, ACL checks, and domain error sub-classing.
+- **Verification**: Executed pytest (`70 passed`) and ruff checks (`All checks passed!`).
 
 ## 4. Next / Follow-Up Sections
 - Upstream dependency for [`002-section-source-adapters.md`](002-section-source-adapters.md) and [`003-section-database-and-vector-store.md`](003-section-database-and-vector-store.md).

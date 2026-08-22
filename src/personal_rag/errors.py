@@ -5,7 +5,23 @@ class PersonalRagError(RuntimeError):
     """Base class so callers can separate platform failures from programming errors."""
 
 
-class NoEvidenceError(PersonalRagError):
+class SourceError(PersonalRagError):
+    """Failure during source material discovery or fetching."""
+
+
+class ChunkingError(PersonalRagError):
+    """Failure during document structure parsing or chunk boundary generation."""
+
+
+class EmbeddingError(PersonalRagError):
+    """Failure during dense embedding generation."""
+
+
+class AbstentionError(PersonalRagError):
+    """Query service refused or abstained from answering due to lack of evidence or policy."""
+
+
+class NoEvidenceError(AbstentionError):
     """Retrieval found nothing the principal may read that supports the query."""
 
 
