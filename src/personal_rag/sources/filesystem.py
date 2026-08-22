@@ -1,9 +1,8 @@
-"""Local filesystem adapter, text formats only (specification section 8.1).
+"""Local filesystem adapter for text and Windows ebook formats (specification section 8.1).
 
-Phase 1 needs one Markdown file to reach a cited answer, so this adapter handles Markdown
-and plain text. PDF and EPUB parsing arrives in Phase 2 (register entry P-04) as extra
-media types here; discovery, revision tracking and the escape guard below are already the
-shape that ebook ingestion needs.
+The adapter keeps discovery, hashing and boundary checks common to every file type. Parser
+engines are imported lazily so descriptor validation and text-only callers do not need to
+initialize either native PDF or EPUB support.
 """
 
 import hashlib
@@ -15,8 +14,14 @@ from pathlib import Path, PurePosixPath
 from ..models import DiscoveryRequest, RawDocument, SourceDescriptor, SourceItem
 from .base import AdapterError
 
-DEFAULT_INCLUDE = ("**/*.md", "**/*.markdown", "**/*.txt")
-MEDIA_TYPES = {".md": "text/markdown", ".markdown": "text/markdown", ".txt": "text/plain"}
+DEFAULT_INCLUDE = ("**/*.md", "**/*.markdown", "**/*.txt", "**/*.pdf", "**/*.epub")
+MEDIA_TYPES = {
+    ".md": "text/markdown",
+    ".markdown": "text/markdown",
+    ".txt": "text/plain",
+    ".pdf": "application/pdf",
+    ".epub": "application/epub+zip",
+}
 
 _TITLE = re.compile(r"^#\s+(.+?)\s*#*\s*$", re.MULTILINE)
 
@@ -85,6 +90,21 @@ class FilesystemAdapter:
 
     def fetch(self, item: SourceItem) -> RawDocument:
         path = self.root / item.item_id
+        try:
+            resolved = path.resolve(strict=True)
+            if not resolved.is_relative_to(self.root.resolve()):
+                raise AdapterError(
+                    "path escapes the filesystem source boundary",
+                    item_id=item.item_id,
+                    status="quarantined",
+                )
+            path = resolved
+        except AdapterError:
+            raise
+        except OSError as exc:
+            raise AdapterError(
+                "filesystem item is not present", item_id=item.item_id, status="unreadable"
+            ) from exc
         suffix = path.suffix.lower()
         if suffix not in MEDIA_TYPES:
             raise AdapterError(
@@ -93,15 +113,19 @@ class FilesystemAdapter:
                 status="unsupported",
             )
         try:
-            text = path.read_text(encoding="utf-8")
-        except UnicodeDecodeError as exc:
-            raise AdapterError(
-                f"{item.item_id} is not valid UTF-8", item_id=item.item_id, status="unreadable"
-            ) from exc
-        except OSError as exc:
+            if suffix == ".pdf":
+                text, metadata = _read_pdf(path, item.item_id)
+            elif suffix == ".epub":
+                text, metadata = _read_epub(path, item.item_id)
+            else:
+                text = path.read_text(encoding="utf-8")
+                metadata = {}
+        except (UnicodeDecodeError, OSError) as exc:
             raise AdapterError(
                 f"cannot read {item.item_id}", item_id=item.item_id, status="unreadable"
             ) from exc
+        except _ParserFailure as exc:
+            raise AdapterError(str(exc), item_id=item.item_id, status="unreadable") from exc
 
         heading = _TITLE.search(text)
         return RawDocument(
@@ -109,9 +133,9 @@ class FilesystemAdapter:
             text=text,
             title=heading.group(1) if heading else (item.title or item.item_id),
             source_revision=item.source_revision or _file_hash(path),
-            parser_version=self.parser_version,
+            parser_version=metadata.pop("parser_version", self.parser_version),
             fetched_at=datetime.now(UTC),
-            metadata={**item.metadata, "relative_path": item.item_id},
+            metadata={**item.metadata, "relative_path": item.item_id, **metadata},
         )
 
     def fingerprint(self, document: RawDocument) -> str:
@@ -124,3 +148,88 @@ def _file_hash(path: Path) -> str:
         for block in iter(lambda: handle.read(131072), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+class _ParserFailure(RuntimeError):
+    """An installed parser could not decode one ebook."""
+
+
+def _read_pdf(path: Path, item_id: str) -> tuple[str, dict]:
+    try:
+        import pymupdf
+    except ImportError as exc:
+        raise _ParserFailure("PDF support requires the PyMuPDF dependency") from exc
+
+    try:
+        pages: list[str] = []
+        page_metadata: list[dict[str, int]] = []
+        line_cursor = 1
+        with pymupdf.open(path) as document:
+            for page_number, page in enumerate(document, start=1):
+                page_text = page.get_text("text").replace("\r\n", "\n").replace("\r", "\n").strip()
+                if not page_text:
+                    continue
+                pages.append(page_text)
+                line_count = max(1, page_text.count("\n") + 1)
+                page_metadata.append(
+                    {
+                        "page": page_number,
+                        "line_start": line_cursor,
+                        "line_end": line_cursor + line_count - 1,
+                    }
+                )
+                line_cursor += line_count + 2
+        if not pages:
+            raise _ParserFailure(f"{item_id} contains no extractable PDF text")
+        return "\n\n".join(pages), {
+            "pages": page_metadata,
+            "parser_version": "pymupdf/1",
+        }
+    except _ParserFailure:
+        raise
+    except Exception as exc:  # parser-specific exceptions vary between PyMuPDF releases
+        raise _ParserFailure(f"cannot parse PDF {item_id}") from exc
+
+
+def _read_epub(path: Path, item_id: str) -> tuple[str, dict]:
+    try:
+        from ebooklib import ITEM_DOCUMENT, epub
+    except ImportError as exc:
+        raise _ParserFailure("EPUB support requires the ebooklib dependency") from exc
+
+    try:
+        book = epub.read_epub(str(path), options={"ignore_ncx": True})
+        sections: list[str] = []
+        chapters: list[dict[str, str | int]] = []
+        for chapter_number, item in enumerate(book.get_items_of_type(ITEM_DOCUMENT), start=1):
+            body = _html_to_markdown(item.get_content().decode("utf-8", errors="replace"))
+            if not body.strip():
+                continue
+            title = item.get_name() or f"chapter-{chapter_number}"
+            sections.append(body)
+            line_start = sum(section.count("\n") + 3 for section in sections[:-1]) + 1
+            chapters.append(
+                {
+                    "chapter": chapter_number,
+                    "name": title,
+                    "line_start": line_start,
+                    "line_end": line_start + body.count("\n"),
+                }
+            )
+        if not sections:
+            raise _ParserFailure(f"{item_id} contains no extractable EPUB text")
+        return "\n\n".join(sections), {
+            "chapters": chapters,
+            "parser_version": "ebooklib/1",
+        }
+    except _ParserFailure:
+        raise
+    except Exception as exc:
+        raise _ParserFailure(f"cannot parse EPUB {item_id}") from exc
+
+
+def _html_to_markdown(html: str) -> str:
+    """Use the shared small HTML reader without making ebook parsing depend on a browser."""
+    from .web import extract_html
+
+    return extract_html(html).text
