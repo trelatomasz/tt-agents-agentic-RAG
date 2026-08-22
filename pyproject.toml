@@ -4,6 +4,11 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = ["fastapi>=0.116,<1", "google-cloud-storage>=3.2,<4", "google-genai>=1.30,<2", "pydantic-settings>=2.10,<3", "pyyaml>=6.0,<7", "uvicorn[standard]>=0.35,<1"]
 
+# psycopg is optional: Phase 1 and the offline evaluation gate run entirely without a
+# database, and the query service should not carry a driver it may never open.
+[project.optional-dependencies]
+postgres = ["psycopg[binary]>=3.2,<4", "psycopg-pool>=3.2,<4"]
+
 [dependency-groups]
 dev = ["httpx>=0.28,<1", "pytest>=9.0.3,<10", "pytest-asyncio>=1.1,<2", "ruff>=0.12,<1"]
 
